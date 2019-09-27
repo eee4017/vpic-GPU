@@ -8,7 +8,7 @@
 #define HAS_V16_PIPELINE
 
 #include "spa_private.h"
-
+#include "../../../cuda_src/gpu.cuh"
 #include "../../../util/pipelines/pipelines_exec.h"
 
 //----------------------------------------------------------------------------//
@@ -287,9 +287,12 @@ advance_p_pipeline( species_t * RESTRICT sp,
   // However, it is worth reconsidering this at some point in the
   // future.
 
+#ifdef USE_GPU
+  advance_p_gpu_launcher(args);
+#else
   EXEC_PIPELINES( advance_p, args, 0 );
-
   WAIT_PIPELINES();
+#endif
 
   // FIXME: HIDEOUS HACK UNTIL BETTER PARTICLE MOVER SEMANTICS
   // INSTALLED FOR DEALING WITH PIPELINES.  COMPACT THE PARTICLE

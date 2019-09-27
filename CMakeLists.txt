@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.1)
 # VPIC project configuration
 #~----------------------------------------------------------------------------~#
 
-project(vpic)
+project(vpic LANGUAGES C CXX CUDA)
 
 #------------------------------------------------------------------------------#
 # If a C++11 compiler is available, then set the appropriate flags
@@ -66,6 +66,8 @@ option(USE_V8_AVX2 "Enable V8 AVX2" OFF)
 option(USE_V16_PORTABLE "Enable V16 Portable" OFF)
 
 option(USE_V16_AVX512 "Enable V16 AVX512" OFF)
+
+option(USE_GPU "Enable CUDA and GPU acceleration" ON)
 
 option(USE_LEGACY_SORT "Enable Legacy Sort Implementation" OFF)
 
@@ -127,6 +129,8 @@ if(ENABLE_OPENSSL)
 endif(ENABLE_OPENSSL)
 
 find_package(Threads REQUIRED)
+# add cuda support
+find_package(CUDA)
 
 #------------------------------------------------------------------------------#
 # Act on build options set in project.cmake
@@ -245,6 +249,12 @@ if(USE_V16_AVX512)
   set(USE_V16 True)
 endif(USE_V16_AVX512)
 
+if(USE_GPU)
+  add_definitions(-DUSE_GPU)
+  set(VPIC_CXX_FLAGS "${VPIC_CXX_FLAGS} -DUSE_GPU")
+  set(USE_GPU True)
+endif(USE_GPU)
+
 # TODO: Can we improve the way this is done so it's detection of a positive not
 # multiple negatives?
 if (NOT USE_V4 AND NOT USE_V8 AND NOT USE_V16)
@@ -332,10 +342,12 @@ file(COPY ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vpic
 #------------------------------------------------------------------------------#
 # Add library target
 #------------------------------------------------------------------------------#
+set(VPIC_FORCE_INCLUDE "-I${CMAKE_SOURCE_DIR}/third_party")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${VPIC_C_FLAGS} ${VPIC_FORCE_INCLUDE}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VPIC_CXX_FLAGS} ${VPIC_FORCE_INCLUDE}")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${VPIC_FORCE_INCLUDE} -D__CUDA_COMPILER__")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VPIC_CXX_FLAGS}")
-
-file(GLOB_RECURSE VPIC_SRC src/*.c src/*.cc)
+file(GLOB_RECURSE VPIC_SRC src/*.c src/*.cc src/*.cu)
 file(GLOB_RECURSE VPIC_NOT_SRC
   src/util/v4/test/v4.cc
   src/util/v8/test/v8.cc

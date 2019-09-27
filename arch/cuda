@@ -1,0 +1,39 @@
+#! /usr/bin/env bash
+#------------------------------------------------------------------------------#
+# Get the path to the project from which this script was called
+#------------------------------------------------------------------------------#
+
+src_dir="${0%/*}/.."
+
+#------------------------------------------------------------------------------#
+# Call CMake command
+#
+#  -DCMAKE_C_COMPILER=nvcc \
+#  -DCMAKE_CXX_COMPILER=nvcc \
+#  -DCMAKE_C_FLAGS="-ccbin /opt/intel-18u4/compilers_and_libraries/linux/mpi/bin64/mpiicc -I/opt/intel-18u4/compilers_and_libraries/linux/include -L/opt/intel-18u4/compilers_and_libraries/linux/mpi/lib64 -lmpi -g -DDEBUG -I/home/eee4017/CppToolkit -O3 " \
+#  -DCMAKE_CXX_FLAGS="-ccbin /opt/intel-18u4/compilers_and_libraries/linux/mpi/bin64/mpiicpc -I/opt/intel-18u4/compilers_and_libraries/linux/include -L/opt/intel-18u4/compilers_and_libraries/linux/mpi/lib64 -lmpi -g -DDEBUG -I/home/eee4017/CppToolkit -O3 " \
+#   -DCUDA_CUDART_LIBRARY=/usr/local/cuda/lib64/libcudart.so \
+#   -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
+#------------------------------------------------------------------------------#
+
+echo $src_dir
+
+cmake \
+  -DCUDA_CUDART_LIBRARY=/usr/local/cuda/lib64/libcudart.so \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DENABLE_INTEGRATED_TESTS=OFF \
+  -DENABLE_UNIT_TESTS=OFF \
+  -DCMAKE_C_COMPILER=mpiicc \
+  -DCMAKE_CXX_COMPILER=mpiicpc \
+  -DCMAKE_C_FLAGS="-g -DDEBUG -O3 " \
+  -DCMAKE_CXX_FLAGS="-g -DDEBUG -O3 " \
+  -DCMAKE_CUDA_FLAGS="-g -G -DDEBUG -O3 -std=c++11" \
+  -DUSE_V4_SSE=OFF \
+  -DUSE_V4_AVX=OFF \
+  -DUSE_V4_AVX2=OFF \
+  -DUSE_V16_AVX512=OFF \
+  -DUSE_GPU=ON \
+  -DCMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS="" \
+  -DCMAKE_SHARED_LIBRARY_LINK_C_FLAGS="" \
+  -DCMAKE_SYSTEM_NAME=Generic \
+  $src_dir

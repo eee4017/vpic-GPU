@@ -164,18 +164,17 @@ int warpAllReduceSum(int val) {
   return val;
 }
 
-__global__ void advance_p_gpu(advance_p_pipeline_args_t _args, int block_size) {
-  advance_p_pipeline_args_t *args = &_args;
+__global__ void advance_p_gpu(advance_p_gpu_args args) {
   int block_rank = blockIdx.x;
   int n_block = gridDim.x;
   int thread_rank = threadIdx.x;
   int n_thread = blockDim.x;
 
-  const float qdt_2mc = args->qdt_2mc;
-  const float cdt_dx = args->cdt_dx;
-  const float cdt_dy = args->cdt_dy;
-  const float cdt_dz = args->cdt_dz;
-  const float qsp = args->qsp;
+  const float qdt_2mc = args.qdt_2mc;
+  const float cdt_dx = args.cdt_dx;
+  const float cdt_dy = args.cdt_dy;
+  const float cdt_dz = args.cdt_dz;
+  const float qsp = args.qsp;
   const float one = 1.0;
   const float one_third = 1.0 / 3.0;
   const float two_fifteenths = 2.0 / 15.0;
@@ -192,15 +191,15 @@ __global__ void advance_p_gpu(advance_p_pipeline_args_t _args, int block_size) {
   __shared__ int f_shared_index[SHARE_MAX_VOXEL_SIZE];
   interpolator_t f_shared[SHARE_MAX_VOXEL_SIZE];
 
-  GPU_DISTRIBUTE(args->np, block_size, block_rank, itmp, n);
-  particle_t *p_global = args->p0 + itmp; 
-  const interpolator_t *f_global = args->f0;
+  GPU_DISTRIBUTE(args.np, block_size, block_rank, itmp, n);
+  particle_t *p_global = args.p0 + itmp; 
+  const interpolator_t *f_global = args.f0;
 
   // __syncthreads();
   // timer_start(loadf); // 32269
   if (thread_rank < SHARE_MAX_VOXEL_SIZE) {  // the first thread
     int my_index = thread_rank * ((n + SHARE_MAX_VOXEL_SIZE - 1) / SHARE_MAX_VOXEL_SIZE);
-    // if(my_index > args->np) my_index = 0;
+    // if(my_index > args.np) my_index = 0;
     // int my_index = thread_rank ? (n-1): 0;
     particle_t p = p_global[my_index];
     f_shared_index[thread_rank] = p.i;
@@ -396,7 +395,7 @@ for(int i = 0;i < n; i+= n_thread){
   // timer_end(reduce);
 
   // timer_start(save_to_global_a); // 13603
-  accumulator_t *a_global = args->a0;
+  accumulator_t *a_global = args.a0;
   for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
     if (thread_rank < 12) {
       float real_a = (float)(res[i][thread_rank] >> 28);

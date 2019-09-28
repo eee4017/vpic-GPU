@@ -11,5 +11,5 @@ module load cuda/10.0
 mkdir build
 cd build
 ../arch/cuda
-
+make -j
 ```

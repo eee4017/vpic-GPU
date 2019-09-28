@@ -9,12 +9,14 @@
  */
 
 #include "vpic.h"
-
+#include "../cuda_src/gpu.cuh"
 #define FAK field_array->kernel
 
 int vpic_simulation::advance(void) {
   species_t *sp;
   double err;
+
+  void gpu_global_storage_init();
 
   // Determine if we are done ... see note below why this is done here
 

@@ -20,5 +20,7 @@ namespace vpic_gpu{
 	};
 
 	void advance_p_gpu_launcher(advance_p_pipeline_args_t *);
+  void sort_p_gpu_launcher(species_t *);
+
 };
 #endif

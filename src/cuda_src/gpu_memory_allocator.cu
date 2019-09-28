@@ -1,4 +1,4 @@
-#include "gpu.h"
+#include "gpu.cuh"
 #include <map>
 #include <cassert>
 using namespace vpic_gpu;

@@ -288,7 +288,7 @@ advance_p_pipeline( species_t * RESTRICT sp,
   // future.
 
 #ifdef USE_GPU
-  advance_p_gpu_launcher(args);
+  vpic_gpu::advance_p_gpu_launcher(args);
 #else
   EXEC_PIPELINES( advance_p, args, 0 );
   WAIT_PIPELINES();

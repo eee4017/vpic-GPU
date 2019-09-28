@@ -169,7 +169,8 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   int n_block = gridDim.x;
   int thread_rank = threadIdx.x;
   int n_thread = blockDim.x;
-
+  int block_size = args.block_size;
+  
   const float qdt_2mc = args.qdt_2mc;
   const float cdt_dx = args.cdt_dx;
   const float cdt_dy = args.cdt_dy;

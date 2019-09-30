@@ -10,6 +10,7 @@
 #define IN_spa
 
 #include "../species_advance.h"
+#include "../../cuda_src/gpu.cuh"
 
 //----------------------------------------------------------------------------//
 // This is the legacy thread serial version of the particle sort.
@@ -159,7 +160,12 @@ sort_p( species_t * sp )
   }
 
   // Conditionally execute this when more abstractions are available.
+#ifdef USE_GPU
+  vpic_gpu::sort_p_gpu_launcher(sp);
+#else
   sort_p_pipeline( sp );
+#endif
+
 }
 
 #endif

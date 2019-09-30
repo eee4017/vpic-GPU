@@ -292,7 +292,6 @@ advance_p_pipeline( species_t * RESTRICT sp,
 #else
   EXEC_PIPELINES( advance_p, args, 0 );
   WAIT_PIPELINES();
-#endif
 
   // FIXME: HIDEOUS HACK UNTIL BETTER PARTICLE MOVER SEMANTICS
   // INSTALLED FOR DEALING WITH PIPELINES.  COMPACT THE PARTICLE
@@ -314,4 +313,7 @@ advance_p_pipeline( species_t * RESTRICT sp,
 
     sp->nm += args->seg[rank].nm;
   }
+#endif
+
+
 }

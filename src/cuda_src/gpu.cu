@@ -6,6 +6,7 @@
 #include <cub/util_allocator.cuh>
 
 namespace vpic_gpu{
+  	gpu_memory_allocator gm;
 
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *args){
         const int num_threads = 32;
@@ -20,14 +21,17 @@ namespace vpic_gpu{
         gpu_args.cdt_dz = args->cdt_dz;
         gpu_args.qsp = args->cdt_dz;
         gpu_args.np = args->np;
+        
+        gpu_args.block_size = block_size;
 
-        gpu_args.p0 = (particle_t *)gm.get_device_pointer(args->p0, args->np);
-        gpu_args.a0 = (accumulator_t *)gm.copy_to_device(args->a0, args->g->nv);
-
+        gpu_args.p0 = (particle_t *)gm.get_device_pointer(args->p0, sizeof(particle_t) * args->np);
+        gpu_args.a0 = (accumulator_t *)gm.copy_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
+        gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)args->f0, sizeof(interpolator_t) * args->g->nv);
+        
         advance_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
-
-        gm.copy_to_host(args->a0, args->g->nv);
-
+        gpuErrchk( cudaPeekAtLastError() );
+        
+        gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
     }
 
     void sort_p_gpu_launcher(species_t * sp){

@@ -19,9 +19,12 @@ namespace vpic_gpu{
         gpu_args.qsp = args->cdt_dz;
         gpu_args.np = args->np;
 
-        // gpu_particle_map.get_device_pointer(args->p0);
-        
+        gpu_args.p0 = gm.get_device_pointer(args->p0);
+        gpu_args.a0 = gm.copy_to_device(args->a0);
 
         advance_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
+
+        gm.copy_to_host(args->a0);
+
     }
 };

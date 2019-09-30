@@ -19,6 +19,12 @@ namespace vpic_gpu{
 		void copy_to_host(host_pointer, size_t);
 	};
 
+	extern gpu_memory_allocator gm;
+
 	void advance_p_gpu_launcher(advance_p_pipeline_args_t *);
+	void sort_p_gpu_launcher(advance_p_pipeline_args_t *);
+	void boundary_p_host(advance_p_pipeline_args_t *);
+
+
 };
 #endif

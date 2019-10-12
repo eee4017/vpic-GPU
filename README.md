@@ -14,9 +14,10 @@ cd build
 make -j
 ```
 
-modified build/bin/vpic
-1. change mpiicpc to `nvcc -ccbin=mpiicpc`
-2. remove arguments which nvcc does not recognize -Wl....
+modify build/bin/vpic
 
-compiler issue
+1. change mpiicpc to `nvcc -ccbin=mpiicpc`
+2. remove arguments which nvcc does not recognize `-Wl....`
+
+### compiler issue
 if set vectorization in arch/cuda (e.g. `-DUSE_V16_AVX512`) to ON, nvcc cannot understand the flags inside header file.

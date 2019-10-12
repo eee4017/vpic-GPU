@@ -164,17 +164,17 @@ reduce_accumulators_pipeline_scalar( accumulators_pipeline_args_t * args,
         k = j + r * sr;
 
         f0  += b[k+ 0];
-	f1  += b[k+ 1];
-	f2  += b[k+ 2];
-	f3  += b[k+ 3];
+        f1  += b[k+ 1];
+        f2  += b[k+ 2];
+        f3  += b[k+ 3];
         f4  += b[k+ 4];
-	f5  += b[k+ 5];
-	f6  += b[k+ 6];
-	f7  += b[k+ 7];
+        f5  += b[k+ 5];
+        f6  += b[k+ 6];
+        f7  += b[k+ 7];
         f8  += b[k+ 8];
-	f9  += b[k+ 9];
-	f10 += b[k+10];
-	f11 += b[k+11];
+        f9  += b[k+ 9];
+        f10 += b[k+10];
+        f11 += b[k+11];
       }
 
       a[j+ 0] =  f0;

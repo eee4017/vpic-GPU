@@ -24,13 +24,14 @@ namespace vpic_gpu{
         
         gpu_args.block_size = block_size;
 
-        gpu_args.p0 = (particle_t *)gm.get_device_pointer(args->p0, sizeof(particle_t) * args->np);
+        gpu_args.p0 = (particle_t *)gm.copy_to_device(args->p0, sizeof(particle_t) * args->np);
         gpu_args.a0 = (accumulator_t *)gm.copy_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
         gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)args->f0, sizeof(interpolator_t) * args->g->nv);
         
         advance_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
         gpuErrchk( cudaPeekAtLastError() );
-        
+
+        gm.copy_to_host(args->p0, sizeof(particle_t) * args->np);        
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
     }
 

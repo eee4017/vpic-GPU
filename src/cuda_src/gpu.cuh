@@ -14,7 +14,7 @@ namespace vpic_gpu{
 		std::map<host_pointer, device_pointer>host_device_map;
 	public:
 		gpu_memory_allocator(){}
-		device_pointer get_device_pointer(host_pointer, size_t);
+		device_pointer map_to_device(host_pointer, size_t); // copy if needed
 		device_pointer copy_to_device(host_pointer, size_t);
 		void copy_to_host(host_pointer, size_t);
 	};

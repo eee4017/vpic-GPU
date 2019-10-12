@@ -7,7 +7,7 @@ using namespace std;
 
 gpu_memory_allocator gm;
 
-device_pointer gpu_memory_allocator::get_device_pointer(host_pointer ptr, size_t size = 0){
+device_pointer gpu_memory_allocator::map_to_device(host_pointer ptr, size_t size = 0){
     auto it = host_device_map.find(ptr);
     if(it != host_device_map.end()) return it->second;
 

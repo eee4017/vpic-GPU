@@ -40,7 +40,7 @@ namespace vpic_gpu{
       const int num_threads = 32;
       const int num_blocks = 512;
 
-      particle_t * device_p = (particle_t *)gm.get_device_pointer(sp->p, sp->np);
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sp->np);
 
       //******************************************************
       //*****modified from cub's device_radixsort example*****

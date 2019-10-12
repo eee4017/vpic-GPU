@@ -368,13 +368,29 @@ for(int i = 0;i < n; i+= n_thread){
     
   __syncthreads();
 
-  // timer_start(reduce); // 660000
-  typedef cub::WarpReduce<int> WarpReduce;
+  typedef cub::WarpReduce<float> WarpReduce;
   __shared__ typename WarpReduce::TempStorage temp_storage;
 
-  int my_a[SHARE_MAX_VOXEL_SIZE][12];
+  float my_a[SHARE_MAX_VOXEL_SIZE][12];
+  __shared__ float res[SHARE_MAX_VOXEL_SIZE][12];
+  #pragma unroll
+  for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
+    #pragma unroll
+    for(int j = 0;j < 12;j++){
+      float aggregate = WarpReduce(temp_storage).Sum(my_a[i][j]);
+    }
+  }
+
+  accumulator_t *a_global = args.a0;
+  for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
+    if (thread_rank < 12) {
+      float real_a = res[i][thread_rank];
+      atomicAdd( ((float *)a_global + f_shared_index[i]) + thread_rank ,
+      real_a );
+    }
+  }
+/*  int my_a[SHARE_MAX_VOXEL_SIZE][12];
   __shared__ int res[SHARE_MAX_VOXEL_SIZE][12];
-  // if(thread_rank == 0) printf("%f\n", a[0][0] * 1e12);
   const float two_p_28 = (float)(1<<28);
   #pragma unroll
   for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
@@ -393,9 +409,7 @@ for(int i = 0;i < n; i+= n_thread){
       __syncthreads();
     }
   }
-  // timer_end(reduce);
 
-  // timer_start(save_to_global_a); // 13603
   accumulator_t *a_global = args.a0;
   for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
     if (thread_rank < 12) {
@@ -403,8 +417,7 @@ for(int i = 0;i < n; i+= n_thread){
       atomicAdd( ((float *)a_global + f_shared_index[i]) + thread_rank ,
       real_a );
     }
-  }
-  // timer_end(save_to_global_a);
+  }*/
 
 
 }

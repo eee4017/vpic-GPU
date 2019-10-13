@@ -1,11 +1,11 @@
 #define IN_spa
-
-#include <cub/cub.cuh>
-#include "gpu.cuh"
-#include "advance_p_gpu.cuh"
-#include "gpu_util.cuh"
+// #include <cub/cub.cuh>
+// #include "gpu.cuh"
+// #include "advance_p_gpu.cuh"
+// #include "gpu_util.cuh"
 
 #ifdef __USE_LESS_
+#error "this is useless"
 __device__ int move_p_gpu(particle_t *p, particle_t *p_global, particle_mover_t *pm,
                           float *a, const int64_t *g_neighbor,
                           int64_t g_rangel, int64_t g_rangeh, const float qsp) {
@@ -143,7 +143,6 @@ __device__ int move_p_gpu(particle_t *p, particle_t *p_global, particle_mover_t 
   return 0;  // Return "mover not in use"
 }
 
-#endif
 
 #define timer_start(elt) \
   int timer_##elt = clock();
@@ -424,3 +423,5 @@ for(int i = 0;i < n; i+= n_thread){
 
 
 }
+
+#endif // __useless

@@ -1,6 +1,7 @@
 #ifndef __NTHU_ADVANCE_P_GPU_H__
 #define __NTHU_ADVANCE_P_GPU_H__
 
+#include "gpu.cuh"
 
 typedef struct advance_p_gpu_args{
   particle_t* p0;       

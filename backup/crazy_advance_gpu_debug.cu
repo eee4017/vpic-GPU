@@ -10,6 +10,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const int thread_rank = threadIdx.x;
   const int n_thread = blockDim.x;
   const int block_size = args.block_size;
+  // if(thread_rank == 0 && block_rank == 0) printf("mom im here\n");
 
   const float qdt_2mc = args.qdt_2mc;
   const float cdt_dx = args.cdt_dx;
@@ -24,22 +25,30 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   float hax, hay, haz, cbx, cby, cbz;
   float v0, v1, v2, v3, v4, v5;
   int itmp, n, nm, max_nm;
+  // __shared__ float a[SHARE_MAX_VOXEL_SIZE][12] = {0};
 
   GPU_DISTRIBUTE(args.np, block_size, block_rank, itmp, n);
   particle_t *p_global = args.p0 + itmp;
   accumulator_t *a_global = args.a0;
   const interpolator_t *f_global = args.f0;
+  // if( block_rank % 1331 == 0 && thread_rank == 0) printf("%d: %d\n", block_rank, itmp);
 
   if (itmp + thread_rank < args.np) {
     particle_t p = p_global[thread_rank];
     interpolator_t f = f_global[p.i];
 
+    if( (itmp + thread_rank) % 5206367 == 0 ){
+        printf("%.17f\t%.17f\t%.17f\t%d\n", p.dx, p.dy, p.dz, p.i); 
+        printf("%.17f\t%.17f\t%.17f\t%.17f\n", f.deydz, f.dezdy, f.ex, f.cbz); 
+    }
     dx = p.dx;  // Load position
     dy = p.dy;
     dz = p.dz;
 
     hax = qdt_2mc * ((f.ex + dy * f.dexdy) + dz * (f.dexdz + dy * f.d2exdydz));
+
     hay = qdt_2mc * ((f.ey + dz * f.deydz) + dx * (f.deydx + dz * f.d2eydzdx));
+
     haz = qdt_2mc * ((f.ez + dx * f.dezdx) + dy * (f.dezdy + dx * f.d2ezdxdy));
 
     cbx = f.cbx + dx * f.dcbxdx;  // Interpolate B
@@ -56,6 +65,10 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     uz += haz;
 
     v0 = qdt_2mc / sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+
+    if( (itmp + thread_rank) % 5206367 == 0 ){
+      printf("%.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", ux, uy, uz, qdt_2mc, v0); 
+    }
 
     // Boris - scalars
     v1 = cbx * cbx + (cby * cby + cbz * cbz);
@@ -76,6 +89,10 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     uy += hay;
     uz += haz;
 
+    if( (itmp + thread_rank) % 5206367 == 0 ){
+      printf("%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v4, uy); 
+    }
+
     p.ux = ux;  // Store momentum
     p.uy = uy;
     p.uz = uz;
@@ -86,6 +103,10 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     ux *= cdt_dx;
     uy *= cdt_dy;
     uz *= cdt_dz;
+
+    if( (itmp + thread_rank) % 5206367 == 0 ){
+      printf("D: %.17f\t%.17f\t%.17f\t%.17f\n", v0, ux, uy, uz); 
+    }
 
     ux *= v0;
     uy *= v0;
@@ -107,6 +128,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
       // current quadrant in a time-step.
 
       q *= qsp;
+      if( (itmp + thread_rank) % 5206367 == 0 ) printf("K: %.17f\t%.17f\t%.17f\t%.17f\n", q, p.w, qsp, args.qsp); 
 
       p.dx = v3;  // Store new position
       p.dy = v4;
@@ -118,29 +140,48 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
       v5 = q * ux * uy * uz * one_third;  // Compute correction
 
+      if( (itmp + thread_rank) % 5206367 == 0 ) printf("K: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v5, q, ux); 
+      
+  
       float *a = (float *)(a_global + p.i);  // Get accumulator
 
 
 #define ACCUMULATE_J(X, Y, Z, offset)                         \
   v4 = q * u##X;   /* v2 = q ux                            */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN1: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v1 = v4 * d##Y;  /* v1 = q ux dy                         */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN2: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v0 = v4 - v1;    /* v0 = q ux (1-dy)                     */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN3: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v1 += v4;        /* v1 = q ux (1+dy)                     */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN4: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v4 = one + d##Z; /* v4 = 1+dz                            */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN5: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v2 = v0 * v4;    /* v2 = q ux (1-dy)(1+dz)               */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN6: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v3 = v1 * v4;    /* v3 = q ux (1+dy)(1+dz)               */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN7: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v4 = one - d##Z; /* v4 = 1-dz                            */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN8: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v0 *= v4;        /* v0 = q ux (1-dy)(1-dz)               */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN9: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v1 *= v4;        /* v1 = q ux (1+dy)(1-dz)               */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN0: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v0 += v5;        /* v0 = q ux [ (1-dy)(1-dz) + uy*uz/3 ] */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN1: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v1 -= v5;        /* v1 = q ux [ (1+dy)(1-dz) - uy*uz/3 ] */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN2: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v2 -= v5;        /* v2 = q ux [ (1-dy)(1+dz) - uy*uz/3 ] */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN3: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   v3 += v5;        /* v3 = q ux [ (1+dy)(1+dz) + uy*uz/3 ] */ \
+  if( (itmp + thread_rank) % 5206367 == 0 ) printf("PPN4: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
   atomicAdd( a + offset + 0, v0 ); \
   atomicAdd( a + offset + 1, v1 ); \
   atomicAdd( a + offset + 2, v2 ); \
-  atomicAdd( a + offset + 3, v3 ); 
-
+  atomicAdd( a + offset + 3, v3 ); \
+  if( (itmp + thread_rank) % 5206367 == 0 ){ \
+    printf("ADD: %.17f\t%.17f\t%.17f\t%.17f\n", v0 , v1 , v2, v3); \
+  }
       ACCUMULATE_J(x, y, z, 0);
       ACCUMULATE_J(y, z, x, 4);
       ACCUMULATE_J(z, x, y, 8);
@@ -171,5 +212,11 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
     p_global[thread_rank] = p;
   }
+
+// if( block_rank == 0 && thread_rank == 0){
+//   float *aa = (float *)a_global;
+//   printf("70957: %f\n",aa[70957]* 1e20);
+//   printf("111109: %f\n",aa[111109]* 1e20);
+// }
 
 }

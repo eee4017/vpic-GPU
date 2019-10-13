@@ -1,7 +1,7 @@
 #define IN_spa
 
 #include "spa_private.h"
-
+// #include <stdio.h>
 #if defined(V16_ACCELERATION)
 
 using namespace v16;
@@ -378,6 +378,9 @@ advance_p_pipeline_v16( advance_p_pipeline_args_t * args,
         }                                                               \
       }                                                                 \
     }
+
+// #   undef MOVE_OUTBND
+// #   define MOVE_OUTBND(N) (N)
 
     MOVE_OUTBND( 0);
     MOVE_OUTBND( 1);

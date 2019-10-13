@@ -92,6 +92,10 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 
     f    = f0 + ii;                           // Interpolate E
 
+    if( (p - args->p0) % 5206367 == 0 ){
+        printf("%.17f\t%.17f\t%.17f\t%d\n", p->dx, p->dy, p->dz, p->i); 
+        printf("%.17f\t%.17f\t%.17f\t%.17f\n", f->deydz, f->dezdy, f->ex, f->cbz); 
+    }
 
     hax  = qdt_2mc*(    ( f->ex    + dy*f->dexdy    ) +
                      dz*( f->dexdz + dy*f->d2exdydz ) );
@@ -116,7 +120,9 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
     uz  += haz;
 
     v0   = qdt_2mc / sqrtf( one + ( ux*ux + ( uy*uy + uz*uz ) ) );
-
+    if( (p - args->p0) % 5206367 == 0 ){
+      printf("%.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", ux, uy, uz, qdt_2mc, v0); 
+    }
                                               // Boris - scalars
     v1   = cbx*cbx + ( cby*cby + cbz*cbz );
     v2   = ( v0*v0 ) * v1;
@@ -136,6 +142,9 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
     uy  += hay;
     uz  += haz;
 
+    if( (p - args->p0) % 5206367 == 0 ){
+      printf("%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v4, uy); 
+    }
 
     p->ux = ux;                               // Store momentum
     p->uy = uy;
@@ -148,6 +157,9 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
     uy  *= cdt_dy;
     uz  *= cdt_dz;
 
+    if( (p - args->p0) % 5206367 == 0 ){
+      printf("D: %.17f\t%.17f\t%.17f\t%.17f\n", v0, ux, uy, uz); 
+    }
 
     ux  *= v0;
     uy  *= v0;
@@ -171,6 +183,7 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 
       q *= qsp;
 
+    if( (p - args->p0) % 5206367 == 0 ) printf("K: %.17f\t%.17f\t%.17f\t%.17f\n", q, p->w, qsp, args->qsp); 
 
       p->dx = v3;                             // Store new position
       p->dy = v4;
@@ -182,29 +195,46 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 
       v5 = q*ux*uy*uz*one_third;              // Compute correction
 
+    if( (p - args->p0) % 5206367 == 0 ) printf("K: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v5, q, ux); 
 
       a  = (float *)( a0 + ii );              // Get accumulator
 
 #     define ACCUMULATE_J(X,Y,Z,offset)                                 \
       v4  = q*u##X;   /* v2 = q ux                            */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN1: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v1  = v4*d##Y;  /* v1 = q ux dy                         */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN2: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v0  = v4-v1;    /* v0 = q ux (1-dy)                     */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN3: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v1 += v4;       /* v1 = q ux (1+dy)                     */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN4: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v4  = one+d##Z; /* v4 = 1+dz                            */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN5: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v2  = v0*v4;    /* v2 = q ux (1-dy)(1+dz)               */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN6: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v3  = v1*v4;    /* v3 = q ux (1+dy)(1+dz)               */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN7: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v4  = one-d##Z; /* v4 = 1-dz                            */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN8: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v0 *= v4;       /* v0 = q ux (1-dy)(1-dz)               */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN9: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v1 *= v4;       /* v1 = q ux (1+dy)(1-dz)               */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN0: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v0 += v5;       /* v0 = q ux [ (1-dy)(1-dz) + uy*uz/3 ] */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN1: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v1 -= v5;       /* v1 = q ux [ (1+dy)(1-dz) - uy*uz/3 ] */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN2: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v2 -= v5;       /* v2 = q ux [ (1-dy)(1+dz) - uy*uz/3 ] */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN3: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       v3 += v5;       /* v3 = q ux [ (1+dy)(1+dz) + uy*uz/3 ] */        \
+  if( (p - args->p0) % 5206367 == 0 ) printf("PPN4: %.17f\t%.17f\t%.17f\t%.17f\t%.17f\n", v0, v1, v2, v4, v5); \
       a[offset+0] += v0;                                                \
       a[offset+1] += v1;                                                \
       a[offset+2] += v2;                                                \
-      a[offset+3] += v3; 
-  
+      a[offset+3] += v3; \
+      if( (p - args->p0) % 5206367 == 0 ){ \ 
+          printf("ADD: %.17f\t%.17f\t%.17f\t%.17f\n", v0 , v1 , v2, v3 ); \
+      }
       ACCUMULATE_J( x, y, z, 0 );
       ACCUMULATE_J( y, z, x, 4 );
       ACCUMULATE_J( z, x, y, 8 );
@@ -242,7 +272,11 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
   // args->seg[pipeline_rank].max_nm    = max_nm;
   // args->seg[pipeline_rank].nm        = nm;
   // args->seg[pipeline_rank].n_ignored = itmp;
-
+// if( pipeline_rank == 0 ){
+//   float *aa = (float *)args->a0;
+//   printf("70957: %f\n",aa[70957]* 1e20);
+//   printf("111109: %f\n",aa[111109]* 1e20);
+// }
 }
 
 //----------------------------------------------------------------------------//
@@ -296,9 +330,9 @@ advance_p_pipeline( species_t * RESTRICT sp,
   // However, it is worth reconsidering this at some point in the
   // future.
 
-#ifdef USE_GPU
-  vpic_gpu::advance_p_gpu_launcher(args);
-#else
+// #ifdef USE_GPU
+//   vpic_gpu::advance_p_gpu_launcher(args);
+// #else
   EXEC_PIPELINES( advance_p, args, 0 );
   WAIT_PIPELINES();
 
@@ -322,7 +356,7 @@ advance_p_pipeline( species_t * RESTRICT sp,
 
   //   sp->nm += args->seg[rank].nm;
   // }
-#endif
+// #endif
 
 
 }

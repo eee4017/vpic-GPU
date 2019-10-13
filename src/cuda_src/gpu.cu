@@ -9,8 +9,10 @@ namespace vpic_gpu{
   	gpu_memory_allocator gm;
 
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *args){
-        const int num_threads = 32;
-        const int block_size = 2048;
+        // const int num_threads = 32;
+        // const int block_size = 2048;
+        const int block_size = 512;
+        const int num_threads = block_size;
 
         const int num_blocks = MATH_CEIL(args->np, block_size);
         advance_p_gpu_args gpu_args;
@@ -19,7 +21,7 @@ namespace vpic_gpu{
         gpu_args.cdt_dx = args->cdt_dx;
         gpu_args.cdt_dy = args->cdt_dy;
         gpu_args.cdt_dz = args->cdt_dz;
-        gpu_args.qsp = args->cdt_dz;
+        gpu_args.qsp = args->qsp;
         gpu_args.np = args->np;
         
         gpu_args.block_size = block_size;

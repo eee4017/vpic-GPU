@@ -4,6 +4,8 @@
 #include "advance_p_gpu.cuh"
 #include "gpu_util.cuh"
 
+#define SHARE_MAX_VOXEL_SIZE 2    // 18
+
 __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const int block_rank = blockIdx.x;
   const int n_block = gridDim.x;
@@ -29,6 +31,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   particle_t *p_global = args.p0 + itmp;
   accumulator_t *a_global = args.a0;
   const interpolator_t *f_global = args.f0;
+  int prev_i = -1;
 
   if (itmp + thread_rank < args.np) {
     particle_t p = p_global[thread_rank];

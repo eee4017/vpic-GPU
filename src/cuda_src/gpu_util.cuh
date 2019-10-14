@@ -2,6 +2,7 @@
 #define __NTHU_GPU_UTIL_H__
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <CppToolkit/color.h>
 
 #define MATH_CEIL(a, b) (((a) + (b)-1) / (b))
@@ -25,6 +26,30 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
   }
 }
 
+class cudaTimer{
+  cudaEvent_t _start, _stop;
+public:
+  cudaTimer(){
+    cudaEventCreate(&_start);
+    cudaEventCreate(&_stop);
+  }
+  void start(){
+    cudaEventRecord(_start);
+  }
+  void end(){
+    cudaEventRecord(_stop);
+  }
+  float getTime(){
+    cudaEventSynchronize(_stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, _start, _stop);
+    return milliseconds;
+  }
+
+  void printTime(const char * name){
+    fprintf(stderr,YELLOW "[Timer %s]: %f ms\n" COLOR_END, name, getTime());
+  }
+};
 
 #endif
 

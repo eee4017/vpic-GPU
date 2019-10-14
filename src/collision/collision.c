@@ -57,6 +57,12 @@ num_collision_op( const collision_op_t * RESTRICT cop_list ) {
 
 void
 apply_collision_op_list( collision_op_t * cop_list ) {
+
+#ifdef USE_GPU
+  ERROR( ("This is not supported in GPU version") );
+  return;
+#endif
+
   collision_op_t * cop;
   LIST_FOR_EACH( cop, cop_list ) cop->apply( cop->params );
 }

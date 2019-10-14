@@ -61,6 +61,11 @@ num_emitter( const emitter_t * RESTRICT e_list ) {
 
 void
 apply_emitter_list( emitter_t * RESTRICT e_list ) {
+#ifdef USE_GPU
+  ERROR( ("This is not supported in GPU version") );
+  return;
+#endif
+
   emitter_t * e;
   LIST_FOR_EACH( e, e_list )
     e->emit( e->params, e->component, e->n_component );

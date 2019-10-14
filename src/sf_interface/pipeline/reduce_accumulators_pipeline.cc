@@ -221,6 +221,11 @@ reduce_accumulators_pipeline_scalar( accumulators_pipeline_args_t * args,
 void
 reduce_accumulator_array_pipeline( accumulator_array_t * RESTRICT aa )
 {
+#ifdef USE_GPU
+  WARNING( ("This is intergrated into advanced_p") );
+  return;
+#endif
+
   DECLARE_ALIGNED_ARRAY( accumulators_pipeline_args_t, 128, args, 1 );
 
   int i0;

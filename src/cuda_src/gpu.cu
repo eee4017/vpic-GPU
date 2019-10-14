@@ -31,12 +31,13 @@ namespace vpic_gpu{
         
         sp->nm = 0;
         gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
-        gpu_args.pm_array = (particle_mover_t *)gm.copy_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
+        gpu_args.pm_array = (particle_mover_t *)gm.map_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
 
         gpu_args.p0 = (particle_t *)gm.copy_to_device(args->p0, sizeof(particle_t) * args->np);
         gpu_args.a0 = (accumulator_t *)gm.copy_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
+        cudaMemset(gpu_args.a0, 0, sizeof(accumulator_t) * args->g->nv); // clear accumulator array
         gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)args->f0, sizeof(interpolator_t) * args->g->nv);
-        gpu_args.g_neighbor = (int64_t *)gm.copy_to_device(args->g->neighbor, sizeof(int64_t) * args->g->nv * 6);
+        gpu_args.g_neighbor = (int64_t *)gm.map_to_device(args->g->neighbor, sizeof(int64_t) * args->g->nv * 6);
         cudaTimer advance_timer;
 
         advance_timer.start();
@@ -49,7 +50,6 @@ namespace vpic_gpu{
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
         gm.copy_to_host(&sp->nm, sizeof(int));
         gm.copy_to_host(args->pm, sizeof(particle_mover_t) * sp->nm);
-        // sp->nm = 0;
         MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
     }
 

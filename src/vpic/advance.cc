@@ -34,10 +34,10 @@ int vpic_simulation::advance(void) {
   // are at r_0 and u_{-1/2}.  Further the mover lists for the particles should
   // empty and all particles should be inside the local computational domain.
   // Advance the particle lists.
-
+#ifndef USE_GPU
   if( species_list )
     TIC clear_accumulator_array( accumulator_array ); TOC( clear_accumulators, 1 );
-
+#endif
   // Note: Particles should not have moved since the last performance sort
   // when calling collision operators.
   // FIXME: Technically, this placement of the collision operators only
@@ -62,10 +62,10 @@ int vpic_simulation::advance(void) {
 
   // This should be after the emission and injection to allow for the
   // possibility of thread parallelizing these operations
-
+#ifndef USE_GPU
   if( species_list )
     TIC reduce_accumulator_array( accumulator_array ); TOC( reduce_accumulators, 1 );
-
+#endif
   // At this point, most particle positions are at r_1 and u_{1/2}. Particles
   // that had boundary interactions are now on the guard list. Process the
   // guard lists. Particles that absorbed are added to rhob (using a corrected

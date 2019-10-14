@@ -266,9 +266,9 @@ typedef struct collective collective_t;
   } while(0)
 
 #define WARNING(args) do {                                      \
-    log_printf(  "Warning at " _LOG_HDR "[%i]:\n\t", world_rank ); \
+    log_printf( YELLOW "Warning at " _LOG_HDR "[%i]:\n\t", world_rank ); \
     log_printf args;                                            \
-    log_printf(  "\n" );                                         \
+    log_printf( COLOR_END "\n" );                                         \
   } while(0)
 
 #define ERROR(args) do {                                      \

@@ -217,31 +217,31 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 
     else                                        // Unlikely
     {
-      // local_pm->dispx = ux;
-      // local_pm->dispy = uy;
-      // local_pm->dispz = uz;
+      local_pm->dispx = ux;
+      local_pm->dispy = uy;
+      local_pm->dispz = uz;
 
-      // local_pm->i     = p - p0;
+      local_pm->i     = p - p0;
 
-      // if ( move_p( p0, local_pm, a0, g, qsp ) ) // Unlikely
-      // {
-      //   if ( nm < max_nm )
-      //   {
-      //     pm[nm++] = local_pm[0];
-      //   }
+      if ( move_p( p0, local_pm, a0, g, qsp ) ) // Unlikely
+      {
+        if ( nm < max_nm )
+        {
+          pm[nm++] = local_pm[0];
+        }
 
-      //   else
-      //   {
-      //     itmp++;                               // Unlikely
-      //   }
-      // }
+        else
+        {
+          itmp++;                               // Unlikely
+        }
+      }
     }
   }
 
-  // args->seg[pipeline_rank].pm        = pm;
-  // args->seg[pipeline_rank].max_nm    = max_nm;
-  // args->seg[pipeline_rank].nm        = nm;
-  // args->seg[pipeline_rank].n_ignored = itmp;
+  args->seg[pipeline_rank].pm        = pm;
+  args->seg[pipeline_rank].max_nm    = max_nm;
+  args->seg[pipeline_rank].nm        = nm;
+  args->seg[pipeline_rank].n_ignored = itmp;
 
 }
 
@@ -297,7 +297,7 @@ advance_p_pipeline( species_t * RESTRICT sp,
   // future.
 
 #ifdef USE_GPU
-  vpic_gpu::advance_p_gpu_launcher(args);
+  vpic_gpu::advance_p_gpu_launcher(args, sp);
 #else
   EXEC_PIPELINES( advance_p, args, 0 );
   WAIT_PIPELINES();
@@ -306,22 +306,23 @@ advance_p_pipeline( species_t * RESTRICT sp,
   // INSTALLED FOR DEALING WITH PIPELINES.  COMPACT THE PARTICLE
   // MOVERS TO ELIMINATE HOLES FROM THE PIPELINING.
 
-  // sp->nm = 0;
-  // for( rank = 0; rank <= N_PIPELINE; rank++ )
-  // {
-  //   if ( args->seg[rank].n_ignored )
-  //   {
-  //     WARNING( ( "Pipeline %i ran out of storage for %i movers",
-  //                rank, args->seg[rank].n_ignored ) );
-  //   }
+  sp->nm = 0;
+  for( rank = 0; rank <= N_PIPELINE; rank++ )
+  {
+    if ( args->seg[rank].n_ignored )
+    {
+      WARNING( ( "Pipeline %i ran out of storage for %i movers",
+                 rank, args->seg[rank].n_ignored ) );
+    }
 
-  //   if ( sp->pm + sp->nm != args->seg[rank].pm )
-  //   {
-  //     MOVE( sp->pm + sp->nm, args->seg[rank].pm, args->seg[rank].nm );
-  //   }
+    if ( sp->pm + sp->nm != args->seg[rank].pm )
+    {
+      MOVE( sp->pm + sp->nm, args->seg[rank].pm, args->seg[rank].nm );
+    }
 
-  //   sp->nm += args->seg[rank].nm;
-  // }
+    sp->nm += args->seg[rank].nm;
+  }
+  MY_MESSAGE( ("cpu sp->nm: %d", sp->nm) );
 #endif
 
 

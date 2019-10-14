@@ -2,13 +2,14 @@
 #include "advance_p_gpu.cuh"
 #include "sort_p_gpu.cuh"
 #include "gpu_util.cuh"
+#include <CppToolkit/color.h>
 #include <cub/cub.cuh>
 #include <cub/util_allocator.cuh>
 
 namespace vpic_gpu{
   	gpu_memory_allocator gm;
 
-    void advance_p_gpu_launcher(advance_p_pipeline_args_t *args){
+    void advance_p_gpu_launcher(advance_p_pipeline_args_t *args, species_t * sp){
         // const int num_threads = 32;
         // const int block_size = 2048;
         const int block_size = 512;
@@ -25,10 +26,17 @@ namespace vpic_gpu{
         gpu_args.np = args->np;
         
         gpu_args.block_size = block_size;
+        gpu_args.g_rangel = args->g->rangel;
+        gpu_args.g_rangeh = args->g->rangeh;
+        
+        sp->nm = 0;
+        gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
+        gpu_args.pm_array = (particle_mover_t *)gm.copy_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
 
         gpu_args.p0 = (particle_t *)gm.copy_to_device(args->p0, sizeof(particle_t) * args->np);
         gpu_args.a0 = (accumulator_t *)gm.copy_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
         gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)args->f0, sizeof(interpolator_t) * args->g->nv);
+        gpu_args.g_neighbor = (int64_t *)gm.copy_to_device(args->g->neighbor, sizeof(int64_t) * args->g->nv * 6);
         cudaTimer advance_timer;
 
         advance_timer.start();
@@ -39,6 +47,10 @@ namespace vpic_gpu{
         advance_timer.printTime("advance_timer");
         gm.copy_to_host(args->p0, sizeof(particle_t) * args->np);        
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
+        gm.copy_to_host(&sp->nm, sizeof(int));
+        gm.copy_to_host(args->pm, sizeof(particle_mover_t) * sp->nm);
+        // sp->nm = 0;
+        MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
     }
 
     void sort_p_gpu_launcher(species_t * sp){
@@ -46,7 +58,7 @@ namespace vpic_gpu{
       const int num_threads = 32;
       const int num_blocks = 512;
 
-      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sp->np);
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
 
       //******************************************************
       //*****modified from cub's device_radixsort example*****

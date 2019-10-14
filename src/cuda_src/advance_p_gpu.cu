@@ -3,6 +3,7 @@
 #include <cub/cub.cuh>
 #include "advance_p_gpu.cuh"
 #include "gpu_util.cuh"
+#include "move_p_gpu.cuh"
 
 #define SHARE_MAX_VOXEL_SIZE 2    // 18
 
@@ -25,11 +26,14 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   float dx, dy, dz, ux, uy, uz, q;
   float hax, hay, haz, cbx, cby, cbz;
   float v0, v1, v2, v3, v4, v5;
-  int itmp, n, nm, max_nm;
+  int itmp, n;
+  int *nm = args.nm;
 
   GPU_DISTRIBUTE(args.np, block_size, block_rank, itmp, n);
   particle_t *p_global = args.p0 + itmp;
   accumulator_t *a_global = args.a0;
+  particle_mover_t *pm_array_global = args.pm_array;
+  particle_mover_t pm;
   const interpolator_t *f_global = args.f0;
   int prev_i = -1;
 
@@ -154,22 +158,20 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     }
 
     else {
-      /*local_pm->dispx = ux;
-      local_pm->dispy = uy;
-      local_pm->dispz = uz;
+      pm.dispx = ux;
+      pm.dispy = uy;
+      pm.dispz = uz;
 
-      local_pm->i = p - p0;
+      pm.i = itmp + thread_rank;
 
-      if (move_p(p0, local_pm, a0, g, qsp))  // Unlikely
-      {
-        if (nm < max_nm) {
-          pm[nm++] = local_pm[0];
-        }
-
-        else {
-          itmp++;  // Unlikely
-        }
-      }*/
+      if (move_p_gpu(&p, &pm,
+        args.a0, args.g_neighbor,
+        args.g_rangel, args.g_rangeh, qsp))  // Unlikely
+      { 
+        // assume max_nm is large enough
+        int the = atomicAdd(nm, 1);
+        pm_array_global[the] = pm;
+      }
     }
 
     p_global[thread_rank] = p;

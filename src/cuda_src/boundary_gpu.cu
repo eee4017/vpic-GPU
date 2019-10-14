@@ -1,3 +1,5 @@
+#ifdef __USE_LESS_ 
+
 #define IN_boundary
 #include "boundary_private.h"
 
@@ -560,3 +562,5 @@ boundary_p( particle_bc_t       * RESTRICT pbc_list,
   for( face=0; face<6; face++ )
     if( shared[face] ) mp_end_send(mp,f2b[face]);
 }
+
+#endif

@@ -251,6 +251,7 @@ typedef struct collective collective_t;
 
 // FIXME: USE ONLY ONE LOG_PRINTF PER MESSAGE TO TRY AND MAKE THIS
 // ATOMIC WHEN MULTIPLE RANKS USE SIMULTANEOUSLY
+#include <CppToolkit/color.h>
 
 #define MESSAGE(args) do {                      \
     log_printf( _LOG_HDR "[%i]: ", world_rank ); \
@@ -258,16 +259,22 @@ typedef struct collective collective_t;
     log_printf( "\n" );                         \
   } while(0)
 
+#define MY_MESSAGE(args) do {                      \
+    log_printf( GREEN _LOG_HDR  "[%i]: ", world_rank ); \
+    log_printf args;                            \
+    log_printf( COLOR_END "\n" );                         \
+  } while(0)
+
 #define WARNING(args) do {                                      \
-    log_printf( "Warning at " _LOG_HDR "[%i]:\n\t", world_rank ); \
+    log_printf(  "Warning at " _LOG_HDR "[%i]:\n\t", world_rank ); \
     log_printf args;                                            \
-    log_printf( "\n" );                                         \
+    log_printf(  "\n" );                                         \
   } while(0)
 
 #define ERROR(args) do {                                      \
-    log_printf( "Error at " _LOG_HDR "[%i]:\n\t", world_rank ); \
+    log_printf( LIGHT_RED "Error at " _LOG_HDR "[%i]:\n\t", world_rank ); \
     log_printf args;                                          \
-    log_printf( "\n" );                                       \
+    log_printf( COLOR_END "\n" );                                       \
     nanodelay( 1000000000 ); /* Let the message out */        \
     exit(1);                                                  \
   } while(0)

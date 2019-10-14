@@ -5,9 +5,10 @@
 
 typedef struct advance_p_gpu_args{
   particle_t* p0;       
-  particle_mover_t* pm;      
+  particle_mover_t* pm_array;
   accumulator_t* a0;      
   interpolator_t* f0;      
+  int *nm;  
 
   float qdt_2mc, cdt_dx, cdt_dy, cdt_dz, qsp;
   int np;

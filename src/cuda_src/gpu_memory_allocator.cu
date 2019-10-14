@@ -9,7 +9,9 @@ gpu_memory_allocator gm;
 
 device_pointer gpu_memory_allocator::map_to_device(host_pointer ptr, size_t size = 0){
     auto it = host_device_map.find(ptr);
-    if(it != host_device_map.end()) return it->second;
+    if(it != host_device_map.end()) {
+        return it->second;
+    }
 
     assert(size != 0);
     return copy_to_device(ptr, size);

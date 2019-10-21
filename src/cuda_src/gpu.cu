@@ -1,5 +1,6 @@
 #include "gpu.cuh"
 #include "advance_p_gpu.cuh"
+#include "energy_p_gpu.cuh"
 #include "sort_p_gpu.cuh"
 #include "backfill_gpu.cuh"
 #include "gpu_util.cuh"
@@ -53,6 +54,34 @@ namespace vpic_gpu{
         gm.copy_to_host(args->pm, sizeof(particle_mover_t) * sp->nm);
         MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
     }
+
+
+    void energy_p_gpu_launcher(energy_p_pipeline_args_t *args,const species_t * sp){
+      const int block_size = 2048;
+      const int num_threads = 32;
+      const int num_blocks = MATH_CEIL(args->np, block_size);
+
+      energy_p_gpu_args gpu_args;
+
+      gpu_args.qdt_2mc = args->qdt_2mc;
+      gpu_args.msp = args->msp;
+      gpu_args.np = args->np;
+      
+      gpu_args.block_size = block_size;
+      args->en[0] = 0.0;
+      gpu_args.p = (particle_t *)gm.copy_to_device((host_pointer)args->p, sizeof(particle_t) * args->np);
+      gpu_args.f = (interpolator_t *)gm.copy_to_device((host_pointer)args->f, sizeof(interpolator_t) * sp->g->nv);
+      gpu_args.en = (double *)gm.copy_to_device((host_pointer)args->en, sizeof(double));
+      
+      cudaTimer energy_timer;
+      energy_timer.start();
+      energy_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
+      gpuErrchk( cudaPeekAtLastError() );
+      energy_timer.end();
+      energy_timer.printTime("energy_timer");
+
+      gm.copy_to_host((host_pointer)args->en, sizeof(double));
+  }
 
     void sort_p_gpu_launcher(species_t * sp){
 

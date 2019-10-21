@@ -23,6 +23,7 @@ namespace vpic_gpu{
 	extern gpu_memory_allocator gm;
 
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *, species_t *);
+    void energy_p_gpu_launcher(energy_p_pipeline_args_t *,const species_t *);
 	void sort_p_gpu_launcher(species_t *);
 
 	void boundary_p_get_p_pm(particle_t *p0, particle_mover_t *pm, species_t * sp);

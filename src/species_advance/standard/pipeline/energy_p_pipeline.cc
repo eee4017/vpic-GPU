@@ -5,7 +5,7 @@
 #define HAS_V16_PIPELINE
 
 #include "spa_private.h"
-
+#include "../../../cuda_src/gpu.cuh"
 #include "../../../util/pipelines/pipelines_exec.h"
 
 //----------------------------------------------------------------------------//
@@ -98,15 +98,20 @@ energy_p_pipeline( const species_t * RESTRICT sp,
   args->msp     = sp->m;
   args->np      = sp->np;
 
-  EXEC_PIPELINES( energy_p, args, 0 );
+  local = 0.0;
 
+#ifdef USE_GPU
+  vpic_gpu::energy_p_gpu_launcher(args, sp);
+  local = args->en[0];
+#else
+  EXEC_PIPELINES( energy_p, args, 0 );
   WAIT_PIPELINES();
 
-  local = 0.0;
   for( rank = 0; rank <= N_PIPELINE; rank++ )
   {
     local += en[rank];
   }
+#endif
 
   mp_allsum_d( &local, &global, 1 );
 

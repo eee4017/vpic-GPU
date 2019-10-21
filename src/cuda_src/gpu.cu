@@ -64,10 +64,10 @@ namespace vpic_gpu{
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *args, species_t * sp){
         // const int num_threads = 32;
         // const int block_size = 2048;
-        const int block_size = 512;
-        const int num_threads = block_size;
+        int block_size = 512;
+        int num_threads = block_size;
 
-        const int num_blocks = MATH_CEIL(args->np, block_size);
+        int num_blocks = MATH_CEIL(args->np, block_size);
         advance_p_gpu_args gpu_args;
 
         gpu_args.qdt_2mc = args->qdt_2mc;
@@ -84,20 +84,39 @@ namespace vpic_gpu{
         sp->nm = 0;
         gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
         gpu_args.pm_array = (particle_mover_t *)gm.map_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
+        gpu_args.temp_pm_array = (particle_mover_t *)gm.map_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
 
         gpu_args.p0 = (particle_t *)gm.map_to_device(args->p0, sizeof(particle_t) * args->np);
-        gpu_args.a0 = (accumulator_t *)gm.copy_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
+        gpu_args.a0 = (accumulator_t *)gm.map_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
         cudaMemset(gpu_args.a0, 0, sizeof(accumulator_t) * args->g->nv); // clear accumulator array
         gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)args->f0, sizeof(interpolator_t) * args->g->nv);
         gpu_args.g_neighbor = (int64_t *)gm.map_to_device(args->g->neighbor, sizeof(int64_t) * args->g->nv * 6);
+        
         cudaTimer advance_timer;
-
         advance_timer.start();
         advance_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
         gpuErrchk( cudaPeekAtLastError() );
         advance_timer.end();
-
         advance_timer.printTime("advance_timer");
+
+        gm.copy_to_host(&sp->nm, sizeof(int));
+        int temp_nm = sp->nm;
+        MY_MESSAGE( ("gpu sp->nm BEFORE handle_particle_movers: %d", temp_nm) );
+
+        block_size = 32;
+        num_threads = block_size;
+        num_blocks = MATH_CEIL(temp_nm, block_size);
+        gpu_args.block_size = block_size;
+
+        sp->nm = 0;
+        gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
+        
+        advance_timer.start();
+        handle_particle_movers<<<num_blocks, num_threads>>>(gpu_args, temp_nm);
+        gpuErrchk( cudaPeekAtLastError() );
+        advance_timer.end();
+        advance_timer.printTime("handle_particle_movers");
+
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
         gm.copy_to_host(&sp->nm, sizeof(int));
         MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );

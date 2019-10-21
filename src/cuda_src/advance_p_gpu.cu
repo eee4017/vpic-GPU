@@ -7,6 +7,36 @@
 
 #define SHARE_MAX_VOXEL_SIZE 2    // 18
 
+__global__ void handle_particle_movers(advance_p_gpu_args args, int temp_nm){
+  const int block_rank = blockIdx.x;
+  const int n_block = gridDim.x;
+  const int thread_rank = threadIdx.x;
+  const int n_thread = blockDim.x;
+  const int block_size = args.block_size;
+
+  const float qsp = args.qsp;
+  int itmp, n;
+  int *nm = args.nm;
+
+  GPU_DISTRIBUTE(temp_nm, block_size, block_rank, itmp, n);
+  if(thread_rank < n){
+    particle_mover_t pm = args.temp_pm_array[itmp + thread_rank];
+    particle_t p = args.p0[pm.i];
+
+    if (move_p_gpu(&p, &pm,
+      args.a0, args.g_neighbor,
+      args.g_rangel, args.g_rangeh, qsp))  // Unlikely
+    { 
+      // assume max_nm is large enough
+      int the = atomicAdd(nm, 1);
+      args.pm_array[the] = pm;
+    }
+    
+    args.p0[pm.i] = p;
+  }
+}
+
+
 __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const int block_rank = blockIdx.x;
   const int n_block = gridDim.x;
@@ -32,7 +62,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   GPU_DISTRIBUTE(args.np, block_size, block_rank, itmp, n);
   particle_t *p_global = args.p0 + itmp;
   accumulator_t *a_global = args.a0;
-  particle_mover_t *pm_array_global = args.pm_array;
+  particle_mover_t *pm_array_global = args.temp_pm_array;
   particle_mover_t pm;
   const interpolator_t *f_global = args.f0;
   int prev_i = -1;
@@ -155,23 +185,15 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 #undef ACCUMULATE_J
 
 
-    }
-
-    else {
+    } else {
       pm.dispx = ux;
       pm.dispy = uy;
       pm.dispz = uz;
 
       pm.i = itmp + thread_rank;
 
-      if (move_p_gpu(&p, &pm,
-        args.a0, args.g_neighbor,
-        args.g_rangel, args.g_rangeh, qsp))  // Unlikely
-      { 
-        // assume max_nm is large enough
-        int the = atomicAdd(nm, 1);
-        pm_array_global[the] = pm;
-      }
+      int the = atomicAdd(nm, 1);
+      pm_array_global[the] = pm;
     }
 
     p_global[thread_rank] = p;

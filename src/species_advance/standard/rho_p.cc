@@ -11,7 +11,6 @@
 #define IN_spa
 
 #include "../species_advance.h"
-
 // accumulate_rho_p adds the charge density associated with the
 // supplied particle array to the rhof of the fields.  Trilinear
 // interpolation is used.  rhof is known at the nodes at the same time
@@ -23,7 +22,6 @@ void
 accumulate_rho_p( /**/  field_array_t * RESTRICT fa,
                   const species_t     * RESTRICT sp ) {
   if( !fa || !sp || fa->g!=sp->g ) ERROR(( "Bad args" ));
-
   /**/  field_t    * RESTRICT ALIGNED(128) f = fa->f;
   const particle_t * RESTRICT ALIGNED(128) p = sp->p;
 

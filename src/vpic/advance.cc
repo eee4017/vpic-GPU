@@ -23,12 +23,13 @@ int vpic_simulation::advance(void) {
   if( num_step>0 && step()>=num_step ) return 0;
 
   // Sort the particles for performance if desired.
-
+#ifndef USE_GPU
   LIST_FOR_EACH( sp, species_list )
     if( (sp->sort_interval>0) && ((step() % sp->sort_interval)==0) ) {
       if( rank()==0 ) MESSAGE(( "Performance sorting \"%s\"", sp->name ));
       TIC sort_p( sp ); TOC( sort_p, 1 );
     } 
+  #endif
 
   // At this point, fields are at E_0 and B_0 and the particle positions
   // are at r_0 and u_{-1/2}.  Further the mover lists for the particles should
@@ -86,9 +87,15 @@ int vpic_simulation::advance(void) {
 #endif
 
   LIST_FOR_EACH( sp, species_list ) {
-    if( sp->nm && verbose )
+    if( sp->nm && verbose ){
       WARNING(( "Removing %i particles associated with unprocessed %s movers (increase num_comm_round)",
                 sp->nm, sp->name ));
+    }
+#ifdef USE_GPU
+    if ( sp->nm ){
+      ERROR( ("This is not supported in GPU version") );
+    }
+#endif
     // Drop the particles that have unprocessed movers due to a user defined
     // boundary condition. Particles of this type with unprocessed movers are
     // in the list of particles and move_p has set the voxel in the particle to
@@ -152,7 +159,16 @@ int vpic_simulation::advance(void) {
     if( rank()==0 ) MESSAGE(( "Divergence cleaning electric field" ));
 
     TIC FAK->clear_rhof( field_array ); TOC( clear_rhof,1 );
-    if( species_list ) TIC LIST_FOR_EACH( sp, species_list ) accumulate_rho_p( field_array, sp ); TOC( accumulate_rho_p, species_list->id );
+    
+    if( species_list ) 
+      TIC LIST_FOR_EACH( sp, species_list ) {
+#ifdef USE_GPU
+        vpic_gpu::accumulate_rho_p_gpu_launcher( field_array, sp );
+#else
+        accumulate_rho_p( field_array, sp );
+#endif
+       } TOC( accumulate_rho_p, species_list->id );
+
     TIC FAK->synchronize_rho( field_array ); TOC( synchronize_rho, 1 );
 
     for( int round=0; round<num_div_e_round; round++ ) {

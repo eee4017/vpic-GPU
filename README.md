@@ -14,12 +14,6 @@ cd build
 make -j
 ```
 
-modify `build/bin/vpic`
-
-1. change mpiicpc to `nvcc -ccbin=mpiicpc`
-2. remove arguments which nvcc does not recognize `-Wl....`
-
-
 ## run lpi_2d_F6_test
 
 ```

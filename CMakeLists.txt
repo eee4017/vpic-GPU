@@ -294,6 +294,11 @@ endif(VPIC_PRINT_MORE_DIGITS)
 # Handle vpic compile script last.
 #------------------------------------------------------------------------------#
 
+set(VPIC_FORCE_INCLUDE "-I${CMAKE_SOURCE_DIR}/third_party")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${VPIC_C_FLAGS} ${VPIC_FORCE_INCLUDE}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VPIC_CXX_FLAGS} ${VPIC_FORCE_INCLUDE}")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${VPIC_FORCE_INCLUDE} ${VPIC_CXX_FLAGS} -D__CUDA_COMPILER__")
+
 # Allow files to be references from the root, (eg #include "src/vpic/vpic.h")
 include_directories(${PROJECT_SOURCE_DIR})
 
@@ -327,8 +332,13 @@ install(FILES ${CMAKE_SOURCE_DIR}/deck/main.cc
 install(FILES ${CMAKE_SOURCE_DIR}/deck/wrapper.cc
   DESTINATION share/vpic)
 
+set(LOCAL_CONFIGURE_FILE vpic-local.in)
 # local script
-configure_file(${CMAKE_SOURCE_DIR}/bin/vpic-local.in
+if(USE_GPU)
+  set(LOCAL_CONFIGURE_FILE vpic-local-cuda.in)
+endif(USE_GPU)
+
+configure_file(${CMAKE_SOURCE_DIR}/bin/${LOCAL_CONFIGURE_FILE}
   ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vpic)
 
 file(COPY ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vpic
@@ -342,10 +352,6 @@ file(COPY ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vpic
 #------------------------------------------------------------------------------#
 # Add library target
 #------------------------------------------------------------------------------#
-set(VPIC_FORCE_INCLUDE "-I${CMAKE_SOURCE_DIR}/third_party")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${VPIC_C_FLAGS} ${VPIC_FORCE_INCLUDE}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VPIC_CXX_FLAGS} ${VPIC_FORCE_INCLUDE}")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${VPIC_FORCE_INCLUDE} -D__CUDA_COMPILER__")
 
 file(GLOB_RECURSE VPIC_SRC src/*.c src/*.cc src/*.cu)
 file(GLOB_RECURSE VPIC_NOT_SRC

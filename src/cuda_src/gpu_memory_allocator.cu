@@ -30,6 +30,16 @@ device_pointer gpu_memory_allocator::copy_to_device(host_pointer ptr, size_t siz
     gpuErrchk( cudaMemcpy(dev_ptr, ptr, size, cudaMemcpyHostToDevice) );
     return dev_ptr;
 }
+void gpu_memory_allocator::realloc(host_pointer ptr, size_t original_size, size_t new_size){
+    auto it = host_device_map.find(ptr);
+    assert(it != host_device_map.end());
+
+    device_pointer original_array = it->second;
+    device_pointer new_array;
+    gpuErrchk( cudaMalloc(&new_array, new_size) );
+    gpuErrchk( cudaMemcpy(new_array, original_array, original_size, cudaMemcpyDeviceToDevice) );
+    gpuErrchk( cudaFree(original_array) );
+}
 void gpu_memory_allocator::copy_to_host(host_pointer ptr, size_t size){
     auto it = host_device_map.find(ptr);
     assert(it != host_device_map.end());

@@ -1,6 +1,7 @@
 #include "gpu.cuh"
 #include "advance_p_gpu.cuh"
 #include "sort_p_gpu.cuh"
+#include "backfill_gpu.cuh"
 #include "gpu_util.cuh"
 #include <CppToolkit/color.h>
 #include <cub/cub.cuh>
@@ -99,5 +100,48 @@ namespace vpic_gpu{
       if (d_values.d_buffers[0]) CubDebugExit(g_allocator.DeviceFree(d_values.d_buffers[0]));
       if (d_values.d_buffers[1]) CubDebugExit(g_allocator.DeviceFree(d_values.d_buffers[1]));
       if (d_temp_storage) CubDebugExit(g_allocator.DeviceFree(d_temp_storage));
+    }
+
+    void boundary_p_get_p_pm(particle_t*  p0,  particle_mover_t* pm, species_t* sp){
+
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
+      particle_mover_t * device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
+
+      int np = sp->np;
+      int nm = sp->nm;
+
+      //allocate device p0/pm
+      particle_t * d_p0;
+      particle_mover_t *d_pm;
+      gpuErrchk( cudaMalloc(&d_p0, nm * sizeof(particle_t)));
+      gpuErrchk( cudaMalloc(&d_pm, nm * sizeof(particle_mover_t)));
+      cudaTimer findPAndPm_timer;
+
+      //find all device p0/pm with back-filling
+      findPAndPm_timer.start();
+      findPAndPm<<<1, 1>>>(device_p, device_pm, d_p0, d_pm, np, nm);
+      findPAndPm_timer.end();
+      gpuErrchk( cudaPeekAtLastError() );
+
+      findPAndPm_timer.printTime("findPAndPm_timer");
+      //transfer device to host
+      gpuErrchk( cudaMemcpy(p0, d_p0, nm * sizeof(particle_t),       cudaMemcpyDeviceToHost));
+      gpuErrchk( cudaMemcpy(pm, d_pm, nm * sizeof(particle_mover_t), cudaMemcpyDeviceToHost));
+
+      //free device p0/pm
+      gpuErrchk( cudaFree(d_p0) );
+      gpuErrchk( cudaFree(d_pm) );
+
+    }
+
+    void append_p_and_pm(particle_t * temp_p, particle_mover_t *temp_pm,
+                         int pi_cnt, int pm_cnt, species_t * sp){
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
+      particle_mover_t * device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
+
+      gpuErrchk( cudaMemcpy(device_p +(sp->np - pi_cnt), temp_p , pi_cnt * sizeof(particle_t),       cudaMemcpyHostToDevice));
+      gpuErrchk( cudaMemcpy(device_pm+(sp->nm - pm_cnt), temp_pm, pm_cnt * sizeof(particle_mover_t), cudaMemcpyHostToDevice));
+      
+      gm.copy_to_host(sp->p, sizeof(particle_t) * sp->np); 
     }
 };

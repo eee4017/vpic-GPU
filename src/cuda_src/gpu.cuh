@@ -16,6 +16,7 @@ namespace vpic_gpu{
 		gpu_memory_allocator(){}
 		device_pointer map_to_device(host_pointer, size_t); // copy if needed
 		device_pointer copy_to_device(host_pointer, size_t);
+		void realloc(host_pointer, size_t , size_t);
 		void copy_to_host(host_pointer, size_t);
 	};
 
@@ -24,8 +25,14 @@ namespace vpic_gpu{
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *, species_t *);
 	void sort_p_gpu_launcher(species_t *);
 
-	void boundary_p_host(advance_p_pipeline_args_t *);
-
+	void boundary_p_get_p_pm(particle_t *p0, particle_mover_t *pm, species_t * sp);
+	void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm, int pi_cnt, int pm_cnt, species_t *sp);
+	
+    template <typename T>
+    void resize_on_device(T* the, size_t original_cnt, size_t new_cnt){
+      gm.realloc(the, sizeof(T) * original_cnt, sizeof(T) * new_cnt);
+    }
+	
 };
 
 

@@ -71,11 +71,20 @@ int vpic_simulation::advance(void) {
   // guard lists. Particles that absorbed are added to rhob (using a corrected
   // local accumulation).
 
+#ifdef USE_GPU
+  TIC
+    for( int round=0; round<num_comm_round; round++ )
+      boundary_p_gpu( particle_bc_list, species_list,
+                      field_array, accumulator_array );
+  TOC( boundary_p, num_comm_round );
+#else
   TIC
     for( int round=0; round<num_comm_round; round++ )
       boundary_p( particle_bc_list, species_list,
                   field_array, accumulator_array );
   TOC( boundary_p, num_comm_round );
+#endif
+
   LIST_FOR_EACH( sp, species_list ) {
     if( sp->nm && verbose )
       WARNING(( "Removing %i particles associated with unprocessed %s movers (increase num_comm_round)",

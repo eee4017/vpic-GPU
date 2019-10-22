@@ -16,8 +16,9 @@ int vpic_simulation::advance(void) {
   species_t *sp;
   double err;
 
-  void gpu_global_storage_init();
-
+#ifdef USE_GPU
+  vpic_gpu::mpiSetDevice(world_rank);
+#endif
   // Determine if we are done ... see note below why this is done here
 
   if( num_step>0 && step()>=num_step ) return 0;

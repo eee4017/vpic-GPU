@@ -22,6 +22,8 @@ namespace vpic_gpu{
 
 	extern gpu_memory_allocator gm;
 
+    void mpiSetDevice(int rank);
+
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *, species_t *);
     void energy_p_gpu_launcher(energy_p_pipeline_args_t *,const species_t *);
 	void sort_p_gpu_launcher(species_t *);

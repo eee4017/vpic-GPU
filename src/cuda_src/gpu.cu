@@ -60,6 +60,10 @@ namespace vpic_gpu{
       if (d_temp_storage) CubDebugExit(g_allocator.DeviceFree(d_temp_storage));
     }
 
+    void mpiSetDevice(int rank){
+      // MY_MESSAGE( ("setting devices@%d", rank) );
+      cudaSetDevice(rank);
+    }
 
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *args, species_t * sp){
         // const int num_threads = 32;
@@ -97,11 +101,10 @@ namespace vpic_gpu{
         advance_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
         gpuErrchk( cudaPeekAtLastError() );
         advance_timer.end();
-        advance_timer.printTime("advance_timer");
+        // advance_timer.printTime("advance_timer");
 
         gm.copy_to_host(&sp->nm, sizeof(int));
         int temp_nm = sp->nm;
-        MY_MESSAGE( ("gpu sp->nm BEFORE handle_particle_movers: %d", temp_nm) );
 
         block_size = 256;
         num_threads = min(temp_nm, block_size);
@@ -111,15 +114,12 @@ namespace vpic_gpu{
         sp->nm = 0;
         gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
         
-        advance_timer.start();
         handle_particle_movers<<<num_blocks, num_threads>>>(gpu_args, temp_nm);
         gpuErrchk( cudaPeekAtLastError() );
-        advance_timer.end();
-        advance_timer.printTime("handle_particle_movers");
 
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
         gm.copy_to_host(&sp->nm, sizeof(int));
-        MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
+        // MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
     }
 
 
@@ -143,7 +143,7 @@ namespace vpic_gpu{
       int block_size = 256;
       const int num_threads = min(nm, block_size);
       const int num_blocks = MATH_CEIL(nm, block_size);
-      MY_MESSAGE(("back_fill %d, %d, %d", nm, num_blocks, num_threads));
+      // MY_MESSAGE(("back_fill %d, %d, %d", nm, num_blocks, num_threads));
       
       back_fill<<<num_blocks, num_threads>>>(device_p, device_pm, d_p0, np, nm, block_size);
       gpuErrchk( cudaPeekAtLastError() );
@@ -160,6 +160,7 @@ namespace vpic_gpu{
                          int pi_cnt, int pm_cnt, species_t * sp){
       particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
       particle_mover_t * device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
+
 
       gpuErrchk( cudaMemcpy(device_p +(sp->np - pi_cnt), temp_p , pi_cnt * sizeof(particle_t),       cudaMemcpyHostToDevice));
       gpuErrchk( cudaMemcpy(device_pm+(sp->nm - pm_cnt), temp_pm, pm_cnt * sizeof(particle_mover_t), cudaMemcpyHostToDevice));
@@ -182,12 +183,12 @@ namespace vpic_gpu{
       gpu_args.p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
       gpu_args.f = (field_t *)gm.copy_to_device(fa->f, sizeof(field_t) * sp->g->nv);
       
-      cudaTimer accumulate_rho_p_gpu_timer;      
-      accumulate_rho_p_gpu_timer.start();
+      // cudaTimer accumulate_rho_p_gpu_timer;      
+      // accumulate_rho_p_gpu_timer.start();
       accumulate_rho_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
       gpuErrchk( cudaPeekAtLastError() );
-      accumulate_rho_p_gpu_timer.end();
-      accumulate_rho_p_gpu_timer.printTime("accumulate_rho_p_gpu");
+      // accumulate_rho_p_gpu_timer.end();
+      // accumulate_rho_p_gpu_timer.printTime("accumulate_rho_p_gpu");
       
       gm.copy_to_host(fa->f, sizeof(field_t) * sp->g->nv);
     }
@@ -206,15 +207,15 @@ namespace vpic_gpu{
       gpu_args.block_size = block_size;
       args->en[0] = 0.0;
       gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)args->p, sizeof(particle_t) * args->np);
-      gpu_args.f = (interpolator_t *)gm.copy_to_device((host_pointer)args->f, sizeof(interpolator_t) * sp->g->nv);
+      gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)args->f, sizeof(interpolator_t) * sp->g->nv);
       gpu_args.en = (double *)gm.copy_to_device((host_pointer)args->en, sizeof(double));
       
-      cudaTimer energy_timer;
-      energy_timer.start();
+      // cudaTimer energy_timer;
+      // energy_timer.start();
       energy_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
       gpuErrchk( cudaPeekAtLastError() );
-      energy_timer.end();
-      energy_timer.printTime("energy_timer");
+      // energy_timer.end();
+      // energy_timer.printTime("energy_timer");
 
       gm.copy_to_host((host_pointer)args->en, sizeof(double));
   }

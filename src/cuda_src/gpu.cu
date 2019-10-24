@@ -8,6 +8,7 @@
 #include <CppToolkit/color.h>
 #include <cub/cub.cuh>
 #include <cub/util_allocator.cuh>
+#include <map>
 
 namespace vpic_gpu{
   	gpu_memory_allocator gm;
@@ -193,30 +194,40 @@ namespace vpic_gpu{
       gm.copy_to_host(fa->f, sizeof(field_t) * sp->g->nv);
     }
 
-    void energy_p_gpu_launcher(energy_p_pipeline_args_t *args,const species_t * sp){
+    std::map<int, double> energy_p_gpu_en;
+    void energy_p_gpu_launcher_1st(species_t * sp_list, interpolator_array_t *ia){
       const int block_size = 2048;
       const int num_threads = 32;
-      const int num_blocks = MATH_CEIL(args->np, block_size);
-
+      
+      species_t *sp;
+    LIST_FOR_EACH( sp, sp_list ) {
       energy_p_gpu_args gpu_args;
+      int num_blocks = MATH_CEIL(sp->np, block_size);
 
-      gpu_args.qdt_2mc = args->qdt_2mc;
-      gpu_args.msp = args->msp;
-      gpu_args.np = args->np;
+      gpu_args.qdt_2mc = (sp->q*sp->g->dt)/(2*sp->m*sp->g->cvac);
+      gpu_args.msp = sp->m;
+      gpu_args.np = sp->np;
       
       gpu_args.block_size = block_size;
-      args->en[0] = 0.0;
-      gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)args->p, sizeof(particle_t) * args->np);
-      gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)args->f, sizeof(interpolator_t) * sp->g->nv);
-      gpu_args.en = (double *)gm.copy_to_device((host_pointer)args->en, sizeof(double));
-      
-      // cudaTimer energy_timer;
-      // energy_timer.start();
-      energy_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
-      gpuErrchk( cudaPeekAtLastError() );
-      // energy_timer.end();
-      // energy_timer.printTime("energy_timer");
+      energy_p_gpu_en[sp->id] = 0.0;
+      gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)sp->p, sizeof(particle_t) * sp->np);
+      gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)ia->i, sizeof(interpolator_t) * sp->g->nv);
+      gpu_args.en = (double *)gm.copy_to_device((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
 
-      gm.copy_to_host((host_pointer)args->en, sizeof(double));
-  }
+      energy_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
+    }
+
+    }
+
+    double energy_p_gpu_launcher_2nd(species_t * sp, interpolator_array_t *ia){
+      gpuErrchk( cudaPeekAtLastError() );
+      gm.copy_to_host((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
+      
+      double local = energy_p_gpu_en[sp->id];
+      double global;
+      mp_allsum_d( &local, &global, 1 );
+  
+      return global * ( ( double ) sp->g->cvac * ( double ) sp->g->cvac );
+    }
+
 };

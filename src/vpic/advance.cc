@@ -94,7 +94,7 @@ int vpic_simulation::advance(void) {
     }
 #ifdef USE_GPU
     if ( sp->nm ){
-      ERROR( ("This is not supported in GPU version") );
+      // ERROR( ("This is not supported in GPU version") );
     }
 #endif
     // Drop the particles that have unprocessed movers due to a user defined
@@ -118,6 +118,9 @@ int vpic_simulation::advance(void) {
     sp->nm = 0;
   }
 
+#ifdef USE_GPU
+  vpic_gpu::energy_p_gpu_launcher_1st( species_list, interpolator_array );
+#endif
   // At this point, all particle positions are at r_1 and u_{1/2}, the
   // guard lists are empty and the accumulators on each processor are current.
   // Convert the accumulators into currents.

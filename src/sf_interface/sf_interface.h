@@ -67,7 +67,7 @@ typedef struct interpolator
   float cbx, dcbxdx;
   float cby, dcbydy;
   float cbz, dcbzdz;
-  float _pad1[PAD_SIZE_INTERPOLATOR];
+  // float _pad1[PAD_SIZE_INTERPOLATOR];
   // float _pad1[2];  // 16-byte align
   // float _pad2[4];  // More padding to get 32-byte align, make conditional
   // float _pad3[8];  // More padding to get 64-byte align, make conditional

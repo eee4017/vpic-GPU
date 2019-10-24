@@ -100,10 +100,6 @@ energy_p_pipeline( const species_t * RESTRICT sp,
 
   local = 0.0;
 
-#ifdef USE_GPU
-  vpic_gpu::energy_p_gpu_launcher(args, sp);
-  local = args->en[0];
-#else
   EXEC_PIPELINES( energy_p, args, 0 );
   WAIT_PIPELINES();
 
@@ -111,7 +107,6 @@ energy_p_pipeline( const species_t * RESTRICT sp,
   {
     local += en[rank];
   }
-#endif
 
   mp_allsum_d( &local, &global, 1 );
 

@@ -25,7 +25,8 @@ namespace vpic_gpu{
     void mpiSetDevice(int rank);
 
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *, species_t *);
-    void energy_p_gpu_launcher(energy_p_pipeline_args_t *,const species_t *);
+    void energy_p_gpu_launcher_1st(species_t * sp_list, interpolator_array_t *ia);
+    double energy_p_gpu_launcher_2nd(species_t * sp, interpolator_array_t *ia);
 	void sort_p_gpu_launcher(species_t *);
     void accumulate_rho_p_gpu_launcher(field_array_t* , const species_t*);
 

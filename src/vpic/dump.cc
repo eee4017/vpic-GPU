@@ -14,7 +14,7 @@
 #include "vpic.h"
 #include "dumpmacros.h"
 #include "../util/io/FileUtils.h"
-
+#include "../cuda_src/gpu.cuh"
 /* -1 means no ranks talk */
 #define VERBOSE_rank -1
 
@@ -64,9 +64,12 @@ vpic_simulation::dump_energies( const char *fname,
     fileIO.print( "%e %e %e %e %e %e",
                   en_f[0], en_f[1], en_f[2],
                   en_f[3], en_f[4], en_f[5] );
-
   LIST_FOR_EACH(sp,species_list) {
+#ifdef USE_GPU
+    en_p = vpic_gpu::energy_p_gpu_launcher_2nd(sp, interpolator_array);
+#else
     en_p = energy_p( sp, interpolator_array );
+#endif
     if( rank()==0 && status!=fail ) fileIO.print( " %e", en_p );
   }
 

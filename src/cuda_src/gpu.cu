@@ -66,10 +66,10 @@ namespace vpic_gpu{
     }
 
     void advance_p_gpu_launcher(advance_p_pipeline_args_t *args, species_t * sp){
-        // const int num_threads = 32;
-        // const int block_size = 2048;
-        int block_size = 512;
-        int num_threads = block_size;
+        int num_threads = 32;
+        int block_size = 2048;
+        // int block_size = 512;
+        // int num_threads = block_size;
 
         int num_blocks = MATH_CEIL(args->np, block_size);
         advance_p_gpu_args gpu_args;
@@ -104,8 +104,9 @@ namespace vpic_gpu{
         // advance_timer.printTime("advance_timer");
 
         gm.copy_to_host(&sp->nm, sizeof(int));
+        // MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
+        //********************HANDLE PM**********************//
         int temp_nm = sp->nm;
-
         block_size = 256;
         num_threads = min(temp_nm, block_size);
         num_blocks = MATH_CEIL(temp_nm, block_size);
@@ -119,7 +120,6 @@ namespace vpic_gpu{
 
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
         gm.copy_to_host(&sp->nm, sizeof(int));
-        // MY_MESSAGE( ("gpu sp->nm: %d", sp->nm) );
     }
 
 

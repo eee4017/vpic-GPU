@@ -60,16 +60,20 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   int *nm = args.nm;
 
   GPU_DISTRIBUTE(args.np, block_size, block_rank, itmp, n);
-  particle_t *p_global = args.p0 + itmp;
+  particle_t *p_global = args.p0;
   accumulator_t *a_global = args.a0;
   particle_mover_t *pm_array_global = args.temp_pm_array;
   particle_mover_t pm;
   const interpolator_t *f_global = args.f0;
   int prev_i = -1;
 
-  if (itmp + thread_rank < args.np) {
-    particle_t p = p_global[thread_rank];
-    interpolator_t f = f_global[p.i];
+  interpolator_t f;
+  for(int block_i = itmp; block_i < itmp + n; block_i += n_thread){
+    if(block_i + thread_rank < itmp + n) {
+
+    particle_t p = p_global[block_i + thread_rank];
+    f = f_global[p.i];
+
 
     dx = p.dx;  // Load position
     dy = p.dy;
@@ -92,7 +96,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     uy += hay;
     uz += haz;
 
-    v0 = qdt_2mc / sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+    v0 = qdt_2mc * rsqrtf(one + (ux * ux + (uy * uy + uz * uz)));
 
     // Boris - scalars
     v1 = cbx * cbx + (cby * cby + cbz * cbz);
@@ -117,7 +121,9 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     p.uy = uy;
     p.uz = uz;
 
-    v0 = one / sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+    // v0 = one / sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+    v0 = rsqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+
     // Get norm displacement
 
     ux *= cdt_dx;
@@ -190,13 +196,14 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
       pm.dispy = uy;
       pm.dispz = uz;
 
-      pm.i = itmp + thread_rank;
+      pm.i = block_i + thread_rank;
 
       int the = atomicAdd(nm, 1);
       pm_array_global[the] = pm;
     }
 
-    p_global[thread_rank] = p;
+    p_global[block_i + thread_rank] = p;
   }
+}
 
 }

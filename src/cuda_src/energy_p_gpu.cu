@@ -39,6 +39,11 @@ for(int n = itmp; n < itmp + size; n += n_thread){
     dy  = p.dy;
     dz  = p.dz;
     i   = p.i;
+
+    // if(i < 0){
+    //   printf("energy_p: ERROR idx %d@%d\n", i, n + thread_rank);
+    // }
+
     if( i != prev_i){
       f = f_global[i];
       prev_i = i;

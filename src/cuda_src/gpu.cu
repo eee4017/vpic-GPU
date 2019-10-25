@@ -8,6 +8,7 @@
 #include <CppToolkit/color.h>
 #include <cub/cub.cuh>
 #include <cub/util_allocator.cuh>
+
 #include <map>
 
 namespace vpic_gpu{
@@ -138,16 +139,29 @@ namespace vpic_gpu{
 
       //allocate device p0/pm
       particle_t * d_p0;
-      gpuErrchk( cudaMalloc(&d_p0, nm * sizeof(particle_t)));
+      particle_t * device_particle_temp;
+      int *device_particle_counter;
+      gpuErrchk( cudaMalloc(&d_p0, nm * sizeof(particle_t)) );
+      gpuErrchk( cudaMalloc(&device_particle_temp,  nm * sizeof(particle_t)) );
+
+      gpuErrchk( cudaMalloc(&device_particle_counter, sizeof(int)) );
+      gpuErrchk( cudaMemset(device_particle_counter, 0, sizeof(int)) );
       
       //find all device p0/pm with back-filling
       int block_size = 256;
       const int num_threads = min(nm, block_size);
       const int num_blocks = MATH_CEIL(nm, block_size);
-      // MY_MESSAGE(("back_fill %d, %d, %d", nm, num_blocks, num_threads));
       
-      back_fill<<<num_blocks, num_threads>>>(device_p, device_pm, d_p0, np, nm, block_size);
+      back_fill_read<<<num_blocks, num_threads>>>(device_p, device_pm, 
+                                                  device_particle_temp, device_particle_counter,
+                                                  d_p0, np, nm, block_size);
       gpuErrchk( cudaPeekAtLastError() );
+      back_fill_write<<<num_blocks, num_threads>>>(device_p, device_pm, 
+                                                  device_particle_temp, device_particle_counter,
+                                                  d_p0, np, nm, block_size);
+
+      gpuErrchk( cudaPeekAtLastError() );
+
 
       //transfer device to host
       gpuErrchk( cudaMemcpy(p0, d_p0, nm * sizeof(particle_t), cudaMemcpyDeviceToHost));
@@ -155,17 +169,29 @@ namespace vpic_gpu{
 
       //free device p0/pm
       gpuErrchk( cudaFree(d_p0) );
+      gpuErrchk( cudaFree(device_particle_temp) );
+      gpuErrchk( cudaFree(device_particle_counter) );
     }
 
+    // __global__
+    // void check_p_idx(particle_t *device_p, int np, int pi_cnt){
+    //   particle p = device_p[blockIdx.x * blockDim.x + threadIdx.x];
+    //   if( p.i < 0 ){
+    //    printf ("check_p_idx: ERROR idx %d@%d int last %d\n", p.i, np - blockIdx.x * blockDim.x + threadIdx.x, pi_cnt) ;
+    //   }
+    // }
+
     void append_p_and_pm(particle_t * temp_p, particle_mover_t *temp_pm,
-                         int pi_cnt, int pm_cnt, species_t * sp){
+                         int pi_cnt, int pm_cnt, species_t * sp) {
       particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
       particle_mover_t * device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
-
-
-      gpuErrchk( cudaMemcpy(device_p +(sp->np - pi_cnt), temp_p , pi_cnt * sizeof(particle_t),       cudaMemcpyHostToDevice));
-      gpuErrchk( cudaMemcpy(device_pm+(sp->nm - pm_cnt), temp_pm, pm_cnt * sizeof(particle_mover_t), cudaMemcpyHostToDevice));
       
+      gpuErrchk( cudaMemcpy(device_p + sp->np - pi_cnt, temp_p, pi_cnt * sizeof(particle_t),       cudaMemcpyHostToDevice));
+      gpuErrchk( cudaMemcpy(device_pm + sp->nm - pm_cnt, temp_pm, pm_cnt * sizeof(particle_mover_t), cudaMemcpyHostToDevice));
+      
+      // const int num_threads = 512;
+      // const int num_blocks = MATH_CEIL(sp->np, num_threads);
+      // check_p_idx<<<num_blocks, num_threads>>>(device_p, sp->np, pi_cnt);
     }
 
     void accumulate_rho_p_gpu_launcher(field_array_t* fa, const species_t* sp){

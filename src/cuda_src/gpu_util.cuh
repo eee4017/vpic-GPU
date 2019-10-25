@@ -51,6 +51,23 @@ public:
   }
 };
 
+// template <typename T>
+// class cudaGlobalVector{
+// private:
+//   T * vecctor_ptr;
+//   size_t *counter;
+// public:
+//   __host__ cudaGlobalVector(size_t max_size){
+//     cudaMalloc();
+//   }
+//   __device__ inline void push_back(const T& the){
+//     size_t idx = atomicAdd(counter)
+//   }
+
+// };
+
+
+
 #endif
 
 

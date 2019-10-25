@@ -94,7 +94,7 @@ int vpic_simulation::advance(void) {
     }
 #ifdef USE_GPU
     if ( sp->nm ){
-      // ERROR( ("This is not supported in GPU version") );
+      ERROR( ("This is not supported in GPU version") );
     }
 #endif
     // Drop the particles that have unprocessed movers due to a user defined

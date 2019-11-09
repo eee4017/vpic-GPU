@@ -24,7 +24,7 @@ int vpic_simulation::advance(void) {
   if( num_step>0 && step()>=num_step ) return 0;
 
   // Sort the particles for performance if desired.
-#ifndef USE_GPU
+#ifdef USE_GPU
   LIST_FOR_EACH( sp, species_list )
     if( (sp->sort_interval>0) && ((step() % sp->sort_interval)==0) ) {
       if( rank()==0 ) MESSAGE(( "Performance sorting \"%s\"", sp->name ));
@@ -72,12 +72,12 @@ int vpic_simulation::advance(void) {
   // that had boundary interactions are now on the guard list. Process the
   // guard lists. Particles that absorbed are added to rhob (using a corrected
   // local accumulation).
-
 #ifdef USE_GPU
   TIC
-    for( int round=0; round<num_comm_round; round++ )
+    for( int round=0; round<num_comm_round; round++ ){
       boundary_p_gpu( particle_bc_list, species_list,
                       field_array, accumulator_array );
+    }
   TOC( boundary_p, num_comm_round );
 #else
   TIC
@@ -86,6 +86,7 @@ int vpic_simulation::advance(void) {
                   field_array, accumulator_array );
   TOC( boundary_p, num_comm_round );
 #endif
+  //vpic_gpu::boundary_p_gpu_finalize(species_list);
 
   LIST_FOR_EACH( sp, species_list ) {
     if( sp->nm && verbose ){
@@ -117,6 +118,7 @@ int vpic_simulation::advance(void) {
     }
     sp->nm = 0;
   }
+
 
 #ifdef USE_GPU
   vpic_gpu::energy_p_gpu_launcher_1st( species_list, interpolator_array );
@@ -167,7 +169,7 @@ int vpic_simulation::advance(void) {
     if( species_list ) 
       TIC LIST_FOR_EACH( sp, species_list ) {
 #ifdef USE_GPU
-        vpic_gpu::accumulate_rho_p_gpu_launcher( field_array, sp );
+       vpic_gpu::accumulate_rho_p_gpu_launcher( field_array, sp );
 #else
         accumulate_rho_p( field_array, sp );
 #endif

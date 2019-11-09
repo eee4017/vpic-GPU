@@ -11,7 +11,8 @@ typedef void *host_pointer;
 namespace vpic_gpu{
 	class gpu_memory_allocator{
 	private:
-		std::map<host_pointer, device_pointer>host_device_map;
+		std::map<host_pointer, device_pointer> host_device_map;
+		std::map<device_pointer, size_t> device_array_size;
 	public:
 		gpu_memory_allocator(){}
 		device_pointer map_to_device(host_pointer, size_t); // copy if needed
@@ -33,6 +34,8 @@ namespace vpic_gpu{
 	void boundary_p_get_p_pm(particle_t *p0, particle_mover_t *pm, species_t * sp);
 	void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm, int pi_cnt, int pm_cnt, species_t *sp);
 	
+    void boundary_p_gpu_finalize(species_t * sp_list);
+
     template <typename T>
     void resize_on_device(T* the, size_t original_cnt, size_t new_cnt){
       gm.realloc(the, sizeof(T) * original_cnt, sizeof(T) * new_cnt);

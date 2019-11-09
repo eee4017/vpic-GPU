@@ -8,18 +8,20 @@
 #include <CppToolkit/color.h>
 #include <cub/cub.cuh>
 #include <cub/util_allocator.cuh>
+#include <algorithm>
 
 #include <map>
 
 namespace vpic_gpu{
-  	gpu_memory_allocator gm;
+    gpu_memory_allocator gm;
+    
 
     void sort_p_gpu_launcher(species_t * sp){
 
       const int num_threads = 32;
       const int num_blocks = 512;
 
-      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
 
       //******************************************************
       //*****modified from cub's device_radixsort example*****
@@ -76,6 +78,8 @@ namespace vpic_gpu{
         int num_blocks = MATH_CEIL(args->np, block_size);
         advance_p_gpu_args gpu_args;
 
+        // MY_MESSAGE(("advancing with %d", sp->np));
+
         gpu_args.qdt_2mc = args->qdt_2mc;
         gpu_args.cdt_dx = args->cdt_dx;
         gpu_args.cdt_dy = args->cdt_dy;
@@ -92,7 +96,7 @@ namespace vpic_gpu{
         gpu_args.pm_array = (particle_mover_t *)gm.map_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
         gpu_args.temp_pm_array = (particle_mover_t *)gm.map_to_device(args->pm, sizeof(particle_mover_t) * args->max_nm);
 
-        gpu_args.p0 = (particle_t *)gm.map_to_device(args->p0, sizeof(particle_t) * args->np);
+        gpu_args.p0 = (particle_t *)gm.map_to_device(args->p0, sizeof(particle_t) * sp->max_np);
         gpu_args.a0 = (accumulator_t *)gm.map_to_device(args->a0, sizeof(accumulator_t) * args->g->nv);
         cudaMemset(gpu_args.a0, 0, sizeof(accumulator_t) * args->g->nv); // clear accumulator array
         gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)args->f0, sizeof(interpolator_t) * args->g->nv);
@@ -122,12 +126,26 @@ namespace vpic_gpu{
 
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
         gm.copy_to_host(&sp->nm, sizeof(int));
+
+
+        auto cmp = [&](const particle_mover_t& a, const particle_mover_t& b){                                                                                            
+          return a.i<b.i;                                                                                                                                                
+        };                                                                                                                                                               
+                                                                                                                                                                         
+        // gm.copy_to_host(args->p0, sizeof(particle_t) * sp->max_np);                                                                                                        
+        gm.copy_to_host(args->pm, sizeof(particle_mover_t) * sp->nm);                                                                                                    
+        std::sort(args->pm, args->pm+sp->nm, cmp);  
+        gm.copy_to_device(args->pm, sizeof(particle_mover_t) * sp->nm);                                                                                                    
+
+        // printf("%s sp->nm:%d\n", sp->name, sp->nm);  
+        // MY_MESSAGE(("p %p, np %d", sp->p, sp->np));
+
     }
 
 
     void boundary_p_get_p_pm(particle_t* p0,  particle_mover_t* pm, species_t* sp){
 
-      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
       particle_mover_t * device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
 
       int np = sp->np;
@@ -138,10 +156,10 @@ namespace vpic_gpu{
       }
 
       //allocate device p0/pm
-      particle_t * d_p0;
+      particle_t * device_preload_p;
       particle_t * device_particle_temp;
       int *device_particle_counter;
-      gpuErrchk( cudaMalloc(&d_p0, nm * sizeof(particle_t)) );
+      gpuErrchk( cudaMalloc(&device_preload_p, nm * sizeof(particle_t)) );
       gpuErrchk( cudaMalloc(&device_particle_temp,  nm * sizeof(particle_t)) );
 
       gpuErrchk( cudaMalloc(&device_particle_counter, sizeof(int)) );
@@ -149,49 +167,68 @@ namespace vpic_gpu{
       
       //find all device p0/pm with back-filling
       int block_size = 256;
+      int cnt = 0;
       const int num_threads = min(nm, block_size);
       const int num_blocks = MATH_CEIL(nm, block_size);
+      // back_fill_read<<<num_blocks, num_threads>>>(device_p, device_pm, 
+      //                                             device_particle_temp, device_particle_counter,
+      //                                             device_preload_p, np, nm, block_size);
+      // gpuErrchk( cudaPeekAtLastError() );
+      // gpuErrchk( cudaMemcpy(&cnt, device_particle_counter, sizeof(int), cudaMemcpyDeviceToHost));
+      // MY_MESSAGE(("back_fill_read device_particle_counter %d",cnt));
+      // back_fill_write<<<num_blocks, num_threads>>>(device_p, device_pm, 
+      //                                             device_particle_temp, device_particle_counter,
+      //                                             device_preload_p, np, nm, block_size);
+      // gpuErrchk( cudaPeekAtLastError() );
       
-      back_fill_read<<<num_blocks, num_threads>>>(device_p, device_pm, 
-                                                  device_particle_temp, device_particle_counter,
-                                                  d_p0, np, nm, block_size);
-      gpuErrchk( cudaPeekAtLastError() );
-      back_fill_write<<<num_blocks, num_threads>>>(device_p, device_pm, 
-                                                  device_particle_temp, device_particle_counter,
-                                                  d_p0, np, nm, block_size);
-
-      gpuErrchk( cudaPeekAtLastError() );
-
-
+      // gpuErrchk( cudaMemcpy(&cnt, device_particle_counter, sizeof(int), cudaMemcpyDeviceToHost));
+      // MY_MESSAGE(("back_fill_write device_particle_counter %d",cnt));
+      findPAndPm<<<1,1>>>(device_p, device_pm, device_preload_p, np, nm);
+      
       //transfer device to host
-      gpuErrchk( cudaMemcpy(p0, d_p0, nm * sizeof(particle_t), cudaMemcpyDeviceToHost));
+      gpuErrchk( cudaMemcpy(p0, device_preload_p, nm * sizeof(particle_t), cudaMemcpyDeviceToHost));
       gpuErrchk( cudaMemcpy(pm, device_pm, nm * sizeof(particle_mover_t), cudaMemcpyDeviceToHost));
 
       //free device p0/pm
-      gpuErrchk( cudaFree(d_p0) );
+      gpuErrchk( cudaFree(device_preload_p) );
       gpuErrchk( cudaFree(device_particle_temp) );
       gpuErrchk( cudaFree(device_particle_counter) );
     }
 
-    // __global__
-    // void check_p_idx(particle_t *device_p, int np, int pi_cnt){
-    //   particle p = device_p[blockIdx.x * blockDim.x + threadIdx.x];
-    //   if( p.i < 0 ){
-    //    printf ("check_p_idx: ERROR idx %d@%d int last %d\n", p.i, np - blockIdx.x * blockDim.x + threadIdx.x, pi_cnt) ;
-    //   }
-    // }
+    __global__
+    void check_p_idx(int Device, particle_t *device_p, int nv, int np){
+      int idx = blockIdx.x * blockDim.x + threadIdx.x;
+      if(idx < np){
+        particle p = device_p[idx];
+        if( p.i < 0 ){
+        printf( RED "[%d]check_p_idx: ERROR idx %d < 0 at %d; dx = %f" COLOR_END "\n",Device, p.i, idx, p.dx) ;
+        }
+        if( p.i >= nv ){
+          printf( RED "[%d]check_p_idx: ERROR idx %d > nv at %d; dx = %f" COLOR_END "\n",Device, p.i, idx, p.dx) ;
+        }
+      }
+    }
 
     void append_p_and_pm(particle_t * temp_p, particle_mover_t *temp_pm,
                          int pi_cnt, int pm_cnt, species_t * sp) {
-      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
+      // MY_MESSAGE(("append_p_and_pm %p, %p, %d, %d", temp_p, temp_pm, pi_cnt, pm_cnt));
+      particle_t * device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
       particle_mover_t * device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
       
-      gpuErrchk( cudaMemcpy(device_p + sp->np - pi_cnt, temp_p, pi_cnt * sizeof(particle_t),       cudaMemcpyHostToDevice));
-      gpuErrchk( cudaMemcpy(device_pm + sp->nm - pm_cnt, temp_pm, pm_cnt * sizeof(particle_mover_t), cudaMemcpyHostToDevice));
+      if(pi_cnt) gpuErrchk( cudaMemcpy(device_p + sp->np - pi_cnt, temp_p, pi_cnt * sizeof(particle_t), cudaMemcpyHostToDevice));
+      if(pm_cnt) gpuErrchk( cudaMemcpy(device_pm + sp->nm - pm_cnt, temp_pm, pm_cnt * sizeof(particle_mover_t), cudaMemcpyHostToDevice));
       
-      // const int num_threads = 512;
-      // const int num_blocks = MATH_CEIL(sp->np, num_threads);
-      // check_p_idx<<<num_blocks, num_threads>>>(device_p, sp->np, pi_cnt);
+      
+      //check_p_idx<<<MATH_CEIL(sp->np, 512), 512>>>(device_p, sp->g->nv);
+    }
+
+    void boundary_p_gpu_finalize(species_t * sp_list){
+      species_t *sp;
+      
+
+      LIST_FOR_EACH( sp, sp_list ) {
+        (particle_t *)gm.copy_to_device(sp->p, sizeof(particle_t) * sp->max_np);
+      }
     }
 
     void accumulate_rho_p_gpu_launcher(field_array_t* fa, const species_t* sp){
@@ -207,7 +244,7 @@ namespace vpic_gpu{
       gpu_args.sz = sp->g->sz;
 
       gpu_args.block_size = block_size;
-      gpu_args.p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->np);
+      gpu_args.p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
       gpu_args.f = (field_t *)gm.copy_to_device(fa->f, sizeof(field_t) * sp->g->nv);
       
       // cudaTimer accumulate_rho_p_gpu_timer;      
@@ -216,7 +253,7 @@ namespace vpic_gpu{
       gpuErrchk( cudaPeekAtLastError() );
       // accumulate_rho_p_gpu_timer.end();
       // accumulate_rho_p_gpu_timer.printTime("accumulate_rho_p_gpu");
-      
+
       gm.copy_to_host(fa->f, sizeof(field_t) * sp->g->nv);
     }
 
@@ -226,6 +263,8 @@ namespace vpic_gpu{
       const int num_threads = 32;
       
       species_t *sp;
+    
+
     LIST_FOR_EACH( sp, sp_list ) {
       energy_p_gpu_args gpu_args;
       int num_blocks = MATH_CEIL(sp->np, block_size);
@@ -236,10 +275,20 @@ namespace vpic_gpu{
       
       gpu_args.block_size = block_size;
       energy_p_gpu_en[sp->id] = 0.0;
-      gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)sp->p, sizeof(particle_t) * sp->np);
+
+      int devideIDX;
+      cudaGetDevice(&devideIDX);
+      
+      gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)sp->p, sizeof(particle_t) * sp->max_np);
       gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)ia->i, sizeof(interpolator_t) * sp->g->nv);
       gpu_args.en = (double *)gm.copy_to_device((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
+      
+      {
+        // MY_MESSAGE(("checking %s: p %p, np %d, nv %d", sp->name, sp->p, sp->np, sp->g->nv));
+        check_p_idx<<<MATH_CEIL(sp->np, 512), 512>>>(devideIDX, gpu_args.p, sp->g->nv, sp->np);
+      }
 
+      // cudaDeviceSynchronize();
       energy_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
     }
 
@@ -254,6 +303,7 @@ namespace vpic_gpu{
       mp_allsum_d( &local, &global, 1 );
   
       return global * ( ( double ) sp->g->cvac * ( double ) sp->g->cvac );
+
     }
 
 };

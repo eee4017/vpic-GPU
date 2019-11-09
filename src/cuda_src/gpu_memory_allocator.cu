@@ -22,11 +22,15 @@ device_pointer gpu_memory_allocator::copy_to_device(host_pointer ptr, size_t siz
     auto it = host_device_map.find(ptr);
     if(it == host_device_map.end()){
         gpuErrchk( cudaMalloc(&dev_ptr, size) );
+        device_array_size.insert(make_pair(ptr, size));
         host_device_map.insert(make_pair(ptr, dev_ptr));
     }else {
         dev_ptr = it->second;
     }
     
+    if(device_array_size[dev_ptr] > size){
+        ERROR(("gpu_memory_allocator error, array size %d is larger than the original array", size));
+    }
     gpuErrchk( cudaMemcpy(dev_ptr, ptr, size, cudaMemcpyHostToDevice) );
     return dev_ptr;
 }

@@ -59,16 +59,19 @@ void back_fill_write(particle_t* device_p, particle_mover_t* device_pm,
     pm = device_pm[itmp + thread_rank];
     p = device_p[pm.i];
     if(pm.i < np - nm && p.i == -31){
-      int idx = atomicAdd(device_particle_counter, -1); 
-      // printf("DEC: %d %d\n", idx, device_particle_temp[idx].i);
+      int idx = atomicSub(device_particle_counter, 1); 
+      // printf("DEC: %d %d\n", idx, pm.i);
       device_p[pm.i] = device_particle_temp[idx];
     }
+
+    // pm.i = itmp + thread_rank;
+    // device_pm[itmp + thread_rank] = pm;
   }
 }
 
 __global__
 void findPAndPm(particle_t * device_p, particle_mover_t * device_pm, 
-                particle_t * d_p0, particle_mover_t * d_pm, int np, int nm)
+                particle_t * d_p0,  int np, int nm)
 {
   int tid = blockIdx.x *blockDim.x + threadIdx.x;
 

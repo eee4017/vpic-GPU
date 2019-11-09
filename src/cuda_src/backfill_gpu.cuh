@@ -3,7 +3,7 @@
 
 __global__
 void findPAndPm(particle_t * device_p, particle_mover_t * device_pm, 
-                particle_t * d_p0, particle_mover_t * d_pm, int np, int nm);
+                particle_t * d_p0, int np, int nm);
     
 __global__
 void back_fill_read(particle_t* device_p, particle_mover_t* device_pm, 

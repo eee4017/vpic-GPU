@@ -95,7 +95,7 @@ int vpic_simulation::advance(void) {
     }
 #ifdef USE_GPU
     if ( sp->nm ){
-      ERROR( ("This is not supported in GPU version") );
+      // ERROR( ("This is not supported in GPU version") );
     }
 #endif
     // Drop the particles that have unprocessed movers due to a user defined
@@ -106,15 +106,18 @@ int vpic_simulation::advance(void) {
     // reverse order for back filling. Particle charge is accumulated to the
     // mesh before removing the particle.
     int nm = sp->nm;
-    particle_mover_t * RESTRICT ALIGNED(16)  pm = sp->pm + sp->nm - 1;
-    particle_t * RESTRICT ALIGNED(128) p0 = sp->p;
-    for (; nm; nm--, pm--) {
-      int i = pm->i; // particle index we are removing
-      p0[i].i >>= 3; // shift particle voxel down
+    // particle_mover_t * RESTRICT ALIGNED(16)  pm = sp->pm + sp->nm - 1;
+    // particle_t * RESTRICT ALIGNED(128) p0 = sp->p;
+
+    std::vector<particle_t> preload_p(sp->nm);
+    std::vector<particle_mover_t> preload_pm(sp->nm);
+    vpic_gpu::boundary_p_get_p_pm(&preload_p[0], &preload_pm[0], sp);
+
+    for (int i = 0;i < sp->nm; i++) {
+      preload_p[i].i >>= 3; // shift particle voxel down
       // accumulate the particle's charge to the mesh
-      accumulate_rhob( field_array->f, p0+i, sp->g, sp->q );
-      p0[i] = p0[sp->np-1]; // put the last particle into position i
-      sp->np--; // decrement the number of particles
+      accumulate_rhob( field_array->f, &preload_p[i], sp->g, sp->q );
+      sp->np --; // decrement the number of particles
     }
     sp->nm = 0;
   }

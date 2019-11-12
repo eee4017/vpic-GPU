@@ -170,20 +170,23 @@ namespace vpic_gpu{
       int cnt = 0;
       const int num_threads = min(nm, block_size);
       const int num_blocks = MATH_CEIL(nm, block_size);
-      // back_fill_read<<<num_blocks, num_threads>>>(device_p, device_pm, 
-      //                                             device_particle_temp, device_particle_counter,
-      //                                             device_preload_p, np, nm, block_size);
-      // gpuErrchk( cudaPeekAtLastError() );
+      back_fill_stage_1<<<num_blocks, num_threads>>>(device_p, device_pm, 
+                                                      device_particle_temp, device_particle_counter,
+                                                      device_preload_p, np, nm, block_size);
+      back_fill_stage_2<<<num_blocks, num_threads>>>(device_p, device_pm, 
+                                                  device_particle_temp, device_particle_counter,
+                                                  device_preload_p, np, nm, block_size);
+      gpuErrchk( cudaPeekAtLastError() );
       // gpuErrchk( cudaMemcpy(&cnt, device_particle_counter, sizeof(int), cudaMemcpyDeviceToHost));
       // MY_MESSAGE(("back_fill_read device_particle_counter %d",cnt));
-      // back_fill_write<<<num_blocks, num_threads>>>(device_p, device_pm, 
-      //                                             device_particle_temp, device_particle_counter,
-      //                                             device_preload_p, np, nm, block_size);
-      // gpuErrchk( cudaPeekAtLastError() );
+      back_fill_stage_3<<<num_blocks, num_threads>>>(device_p, device_pm, 
+                                                  device_particle_temp, device_particle_counter,
+                                                  device_preload_p, np, nm, block_size);
+      gpuErrchk( cudaPeekAtLastError() );
       
       // gpuErrchk( cudaMemcpy(&cnt, device_particle_counter, sizeof(int), cudaMemcpyDeviceToHost));
       // MY_MESSAGE(("back_fill_write device_particle_counter %d",cnt));
-      findPAndPm<<<1,1>>>(device_p, device_pm, device_preload_p, np, nm);
+      // findPAndPm<<<1,1>>>(device_p, device_pm, device_preload_p, np, nm);
       
       //transfer device to host
       gpuErrchk( cudaMemcpy(p0, device_preload_p, nm * sizeof(particle_t), cudaMemcpyDeviceToHost));

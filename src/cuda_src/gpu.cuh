@@ -28,14 +28,14 @@ extern gpu_memory_allocator gm;
 void mpiSetDevice(int rank);
 void cudaInitSpeciesStream(species_t *sp_list);
 
-void advance_p_gpu_launcher(advance_p_pipeline_args_t *, species_t *);
-void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia);
-double energy_p_gpu_stage_2(species_t *sp, interpolator_array_t *ia);
 void sort_p_gpu_launcher(species_t *);
-void accumulate_rho_p_gpu_launcher(field_array_t *, const species_t *);
-
+void advance_p_gpu_launcher(species_t * sp_list, accumulator_array_t * aa, const interpolator_array_t * ia);
 void boundary_p_get_p_pm(particle_t *p0, particle_mover_t *pm, species_t *sp);
 void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm, int pi_cnt, int pm_cnt, species_t *sp);
+void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia);
+void accumulate_rho_p_gpu_launcher(field_array_t *, const species_t *);
+double energy_p_gpu_stage_2(species_t *sp, interpolator_array_t *ia);
+
 
 template <typename T>
 void resize_on_device(T *the, size_t original_cnt, size_t new_cnt) {

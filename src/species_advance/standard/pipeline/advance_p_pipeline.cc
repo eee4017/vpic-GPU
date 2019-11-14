@@ -296,9 +296,6 @@ advance_p_pipeline( species_t * RESTRICT sp,
   // However, it is worth reconsidering this at some point in the
   // future.
 
-#ifdef USE_GPU
-  vpic_gpu::advance_p_gpu_launcher(args, sp);
-#else
   EXEC_PIPELINES( advance_p, args, 0 );
   WAIT_PIPELINES();
 
@@ -322,8 +319,6 @@ advance_p_pipeline( species_t * RESTRICT sp,
 
     sp->nm += args->seg[rank].nm;
   }
-  MY_MESSAGE( ("cpu sp->nm: %d", sp->nm) );
-#endif
 
 
 }

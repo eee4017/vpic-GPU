@@ -124,7 +124,7 @@ int vpic_simulation::advance(void) {
 
 
 #ifdef USE_GPU
-  vpic_gpu::energy_p_gpu_launcher_1st( species_list, interpolator_array );
+  vpic_gpu::energy_p_gpu_stage_1( species_list, interpolator_array );
 #endif
   // At this point, all particle positions are at r_1 and u_{1/2}, the
   // guard lists are empty and the accumulators on each processor are current.

@@ -3,30 +3,27 @@
 
 #include "gpu.cuh"
 
-typedef struct advance_p_gpu_args{
-  particle_t* p0;       
+typedef struct advance_p_gpu_args {
+  particle_t* p0;
   particle_mover_t* pm_array;
   particle_mover_t* temp_pm_array;
-  accumulator_t* a0;      
-  interpolator_t* f0;      
-  int *nm;  
+  accumulator_t* a0;
+  interpolator_t* f0;
+  int* nm;
 
   float qdt_2mc, cdt_dx, cdt_dy, cdt_dz, qsp;
   int np;
-  // original: int np, max_nm, nx, ny, nz; 
-  
-  int block_size;
-  
-  const int64_t *g_neighbor;
-  int64_t g_rangel, g_rangeh; 
+
+  int stride_size;
+
+  const int64_t* g_neighbor;
+  int64_t g_rangel, g_rangeh;
 } advance_p_gpu_args_t;
 
-__global__
-void 
+__global__ void
 advance_p_gpu(advance_p_gpu_args args);
 
-__global__
-void
+__global__ void
 handle_particle_movers(advance_p_gpu_args args, int temp_nm);
 
 #endif

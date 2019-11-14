@@ -66,7 +66,7 @@ vpic_simulation::dump_energies( const char *fname,
                   en_f[3], en_f[4], en_f[5] );
   LIST_FOR_EACH(sp,species_list) {
 #ifdef USE_GPU
-    en_p = vpic_gpu::energy_p_gpu_launcher_2nd(sp, interpolator_array);
+    en_p = vpic_gpu::energy_p_gpu_stage_2(sp, interpolator_array);
 #else
     en_p = energy_p( sp, interpolator_array );
 #endif

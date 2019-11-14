@@ -6,30 +6,30 @@
 
 #else
 static __inline__ __device__ double atomicAdd(double *address, double val) {
-unsigned long long int* address_as_ull = (unsigned long long int*)address;
-unsigned long long int old = *address_as_ull, assumed;
-if (val==0.0)
+  unsigned long long int *address_as_ull = (unsigned long long int *)address;
+  unsigned long long int old = *address_as_ull, assumed;
+  if (val == 0.0)
     return __longlong_as_double(old);
-do {
+  do {
     assumed = old;
-    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val +__longlong_as_double(assumed)));
-} while (assumed != old);
-return __longlong_as_double(old);
+    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+  } while (assumed != old);
+  return __longlong_as_double(old);
 }
 
 #endif
 
 struct energy_p_gpu_args {
-  particle_t *p;  
-  interpolator_t* f;     
-  double *en;     
-  float  qdt_2mc; 
-  float  msp;    
-  int np;      
-  int block_size;
+  particle_t *p;
+  interpolator_t *f;
+  double *en;
+  float qdt_2mc;
+  float msp;
+  int np;
+  int stride_size;
 };
 
-__global__ void 
+__global__ void
 energy_p_gpu(energy_p_gpu_args args);
 
 #endif

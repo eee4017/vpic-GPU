@@ -143,22 +143,20 @@ __device__ int move_p_gpu(particle_t *p, particle_t *p_global, particle_mover_t 
   return 0;  // Return "mover not in use"
 }
 
-
 #define timer_start(elt) \
   int timer_##elt = clock();
 
-#define  timer_end(elt) \
+#define timer_end(elt)                 \
   timer_##elt = clock() - timer_##elt; \
-  if(threadIdx.x == 0) printf(#elt": %d\n", timer_##elt); 
+  if (threadIdx.x == 0) printf(#elt ": %d\n", timer_##elt);
 
 // Total __shared__ size = 11298 * sizeof(int)
 // #define BLOCK_SIZE 512
-#define SHARE_MAX_VOXEL_SIZE 2    // 18
-#define SHARE_MAX_PM_SIZE 10  // > (1024 * 0.2%) // 10 * 4
+#define SHARE_MAX_VOXEL_SIZE 2  // 18
+#define SHARE_MAX_PM_SIZE 10    // > (1024 * 0.2%) // 10 * 4
 
-__inline__ __device__
-int warpAllReduceSum(int val) {
-  for (int mask = warpSize/2; mask > 0; mask /= 2) 
+__inline__ __device__ int warpAllReduceSum(int val) {
+  for (int mask = warpSize / 2; mask > 0; mask /= 2)
     val += __shfl_xor(val, mask);
   return val;
 }
@@ -169,7 +167,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const int thread_rank = threadIdx.x;
   const int n_thread = blockDim.x;
   const int block_size = args.block_size;
-  
+
   const float qdt_2mc = args.qdt_2mc;
   const float cdt_dx = args.cdt_dx;
   const float cdt_dy = args.cdt_dy;
@@ -178,8 +176,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const float one = 1.0;
   const float one_third = 1.0 / 3.0;
   const float two_fifteenths = 2.0 / 15.0;
-  
-  
+
   float dx, dy, dz, ux, uy, uz, q;
   float hax, hay, haz, cbx, cby, cbz;
   float v0, v1, v2, v3, v4, v5;
@@ -189,18 +186,18 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
   particle_mover_t local_pm;
   __shared__ int f_shared_index[2];
-  interpolator_t f_shared[2]; // assume only 2 kinds of voxels 
+  interpolator_t f_shared[2];  // assume only 2 kinds of voxels
 
   GPU_DISTRIBUTE(args.np, block_size, block_rank, itmp, n);
-  particle_t *p_global = args.p0 + itmp; 
+  particle_t *p_global = args.p0 + itmp;
   const interpolator_t *f_global = args.f0;
 
-  // if (thread_rank == 0) { 
+  // if (thread_rank == 0) {
   //   particle_t p = p_global[0];
   //   f_shared_index[0] = p.i;
   //   f_shared[0] = f_global[p.i];
   // }
-  // if (thread_rank == 1) {  
+  // if (thread_rank == 1) {
   //   particle_t p = p_global[n - 1];
   //   f_shared_index[1] = p.i;
   //   f_shared[1] = f_global[p.i];
@@ -212,104 +209,104 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   interpolator_t f;
 
   int cnt = 0;
-for(int i = 0;i < n; i+= n_thread){
-  if (thread_rank < n) {
-    particle_t p = p_global[i + thread_rank];
+  for (int i = 0; i < n; i += n_thread) {
+    if (thread_rank < n) {
+      particle_t p = p_global[i + thread_rank];
 
-    interpolator_t f = f_global[p.i];
-    // if (f_shared_index[ii] != p.i){
-    //   cnt ++;
-    //   if(cnt > 2)printf("%d\n", cnt);
-    //   while(ii < SHARE_MAX_VOXEL_SIZE && f_shared_index[ii] != p.i) ii++;
-    //   f = f_shared[ii];
-    // }
+      interpolator_t f = f_global[p.i];
+      // if (f_shared_index[ii] != p.i){
+      //   cnt ++;
+      //   if(cnt > 2)printf("%d\n", cnt);
+      //   while(ii < SHARE_MAX_VOXEL_SIZE && f_shared_index[ii] != p.i) ii++;
+      //   f = f_shared[ii];
+      // }
 
-    dx = p.dx;  // Load position
-    dy = p.dy;
-    dz = p.dz;
+      dx = p.dx;  // Load position
+      dy = p.dy;
+      dz = p.dz;
 
-    hax = qdt_2mc *
-          ((f.ex + dy * f.dexdy) + dz * (f.dexdz + dy * f.d2exdydz));
+      hax = qdt_2mc *
+            ((f.ex + dy * f.dexdy) + dz * (f.dexdz + dy * f.d2exdydz));
 
-    hay = qdt_2mc *
-          ((f.ey + dz * f.deydz) + dx * (f.deydx + dz * f.d2eydzdx));
+      hay = qdt_2mc *
+            ((f.ey + dz * f.deydz) + dx * (f.deydx + dz * f.d2eydzdx));
 
-    haz = qdt_2mc *
-          ((f.ez + dx * f.dezdx) + dy * (f.dezdy + dx * f.d2ezdxdy));
+      haz = qdt_2mc *
+            ((f.ez + dx * f.dezdx) + dy * (f.dezdy + dx * f.d2ezdxdy));
 
-    cbx = f.cbx + dx * f.dcbxdx;  // Interpolate B
-    cby = f.cby + dy * f.dcbydy;
-    cbz = f.cbz + dz * f.dcbzdz;
+      cbx = f.cbx + dx * f.dcbxdx;  // Interpolate B
+      cby = f.cby + dy * f.dcbydy;
+      cbz = f.cbz + dz * f.dcbzdz;
 
-    ux = p.ux;  // Load momentum
-    uy = p.uy;
-    uz = p.uz;
-    q = p.w;
+      ux = p.ux;  // Load momentum
+      uy = p.uy;
+      uz = p.uz;
+      q = p.w;
 
-    ux += hax;  // Half advance E
-    uy += hay;
-    uz += haz;
+      ux += hax;  // Half advance E
+      uy += hay;
+      uz += haz;
 
-    v0 = qdt_2mc /
-         sqrtf(one + (ux * ux + (uy * uy + uz * uz)));  
+      v0 = qdt_2mc /
+           sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
 
-    // Boris - scalars
-    v1 = cbx * cbx + (cby * cby + cbz * cbz);
-    v2 = (v0 * v0) * v1;
-    v3 = v0 * (one + v2 * (one_third + v2 * two_fifteenths));
-    v4 = v3 / (one + v1 * (v3 * v3));
-    v4 += v4;
+      // Boris - scalars
+      v1 = cbx * cbx + (cby * cby + cbz * cbz);
+      v2 = (v0 * v0) * v1;
+      v3 = v0 * (one + v2 * (one_third + v2 * two_fifteenths));
+      v4 = v3 / (one + v1 * (v3 * v3));
+      v4 += v4;
 
-    v0 = ux + v3 * (uy * cbz - uz * cby);  // Boris - uprime
-    v1 = uy + v3 * (uz * cbx - ux * cbz);
-    v2 = uz + v3 * (ux * cby - uy * cbx);
+      v0 = ux + v3 * (uy * cbz - uz * cby);  // Boris - uprime
+      v1 = uy + v3 * (uz * cbx - ux * cbz);
+      v2 = uz + v3 * (ux * cby - uy * cbx);
 
-    ux += v4 * (v1 * cbz - v2 * cby);  // Boris - rotation
-    uy += v4 * (v2 * cbx - v0 * cbz);
-    uz += v4 * (v0 * cby - v1 * cbx);
+      ux += v4 * (v1 * cbz - v2 * cby);  // Boris - rotation
+      uy += v4 * (v2 * cbx - v0 * cbz);
+      uz += v4 * (v0 * cby - v1 * cbx);
 
-    ux += hax;  // Half advance E
-    uy += hay;
-    uz += haz;
+      ux += hax;  // Half advance E
+      uy += hay;
+      uz += haz;
 
-    p.ux = ux;  // Store momentum
-    p.uy = uy;
-    p.uz = uz;
+      p.ux = ux;  // Store momentum
+      p.uy = uy;
+      p.uz = uz;
 
-    v0 = one / sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
-    // Get norm displacement
+      v0 = one / sqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+      // Get norm displacement
 
-    ux *= cdt_dx;
-    uy *= cdt_dy;
-    uz *= cdt_dz;
+      ux *= cdt_dx;
+      uy *= cdt_dy;
+      uz *= cdt_dz;
 
-    ux *= v0;
-    uy *= v0;
-    uz *= v0;
+      ux *= v0;
+      uy *= v0;
+      uz *= v0;
 
-    v0 = dx + ux;  // Streak midpoint (inbnds)
-    v1 = dy + uy;
-    v2 = dz + uz;
+      v0 = dx + ux;  // Streak midpoint (inbnds)
+      v1 = dy + uy;
+      v2 = dz + uz;
 
-    v3 = v0 + ux;  // New position
-    v4 = v1 + uy;
-    v5 = v2 + uz;
+      v3 = v0 + ux;  // New position
+      v4 = v1 + uy;
+      v5 = v2 + uz;
 
-    // FIXME-KJB: COULD SHORT CIRCUIT ACCUMULATION IN THE CASE WHERE QSP==0!
-    if (v3 <= one && v4 <= one && v5 <= one &&  // Check if inbnds
-        -v3 <= one && -v4 <= one && -v5 <= one) {
-      q *= qsp;
+      // FIXME-KJB: COULD SHORT CIRCUIT ACCUMULATION IN THE CASE WHERE QSP==0!
+      if (v3 <= one && v4 <= one && v5 <= one &&  // Check if inbnds
+          -v3 <= one && -v4 <= one && -v5 <= one) {
+        q *= qsp;
 
-      p.dx = v3;  // Store new position
-      p.dy = v4;
-      p.dz = v5;
+        p.dx = v3;  // Store new position
+        p.dy = v4;
+        p.dz = v5;
 
-      dx = v0;  // Streak midpoint
-      dy = v1;
-      dz = v2;
+        dx = v0;  // Streak midpoint
+        dy = v1;
+        dz = v2;
 
-      v5 = q * ux * uy * uz * one_third;  // Compute correction
-      
+        v5 = q * ux * uy * uz * one_third;  // Compute correction
+
 #define ACCUMULATE_J(X, Y, Z, offset)                         \
   v4 = q * u##X;   /* v2 = q ux                            */ \
   v1 = v4 * d##Y;  /* v1 = q ux dy                         */ \
@@ -325,32 +322,32 @@ for(int i = 0;i < n; i+= n_thread){
   v1 -= v5;        /* v1 = q ux [ (1+dy)(1-dz) - uy*uz/3 ] */ \
   v2 -= v5;        /* v2 = q ux [ (1-dy)(1+dz) - uy*uz/3 ] */ \
   v3 += v5;        /* v3 = q ux [ (1+dy)(1+dz) + uy*uz/3 ] */ \
-  a[ii][offset + 0] = v0;                           \
-  a[ii][offset + 1] = v1;                           \
-  a[ii][offset + 2] = v2;                           \
-  a[ii][offset + 3] = v3; 
+  a[ii][offset + 0] = v0;                                     \
+  a[ii][offset + 1] = v1;                                     \
+  a[ii][offset + 2] = v2;                                     \
+  a[ii][offset + 3] = v3;
 
-  // timer_start(save_to_local_a); // 9920
-      ACCUMULATE_J(x, y, z, 0);
-      ACCUMULATE_J(y, z, x, 4);
-      ACCUMULATE_J(z, x, y, 8);
-  // timer_end(save_to_local_a);
+        // timer_start(save_to_local_a); // 9920
+        ACCUMULATE_J(x, y, z, 0);
+        ACCUMULATE_J(y, z, x, 4);
+        ACCUMULATE_J(z, x, y, 8);
+        // timer_end(save_to_local_a);
 
 #undef ACCUMULATE_J
-    }
+      }
 
-    else{
-      local_pm.dispx = ux;
-      local_pm.dispy = uy;
-      local_pm.dispz = uz;
+      else {
+        local_pm.dispx = ux;
+        local_pm.dispy = uy;
+        local_pm.dispz = uz;
 
-      local_pm.i = itmp + i + thread_rank;
+        local_pm.i = itmp + i + thread_rank;
 
-      // __device__ int move_p_gpu(particle_t *p0, particle_mover_t *pm,
-      //   accumulator_t *a0, const int64_t *g_neighbor,
-      //   int64_t g_rangel, int64_t g_rangeh, const float qsp) {
+        // __device__ int move_p_gpu(particle_t *p0, particle_mover_t *pm,
+        //   accumulator_t *a0, const int64_t *g_neighbor,
+        //   int64_t g_rangel, int64_t g_rangeh, const float qsp) {
 
-      /*if (move_p_gpu(p0, &local_pm, a0, g, qsp))  // Unlikely
+        /*if (move_p_gpu(p0, &local_pm, a0, g, qsp))  // Unlikely
       {
         if (nm < max_nm) {
           pm[nm++] = local_pm[0];
@@ -360,12 +357,12 @@ for(int i = 0;i < n; i+= n_thread){
           itmp++;  // Unlikely
         }
       }*/
-    }
+      }
 
-    p_global[i + thread_rank] = p;
+      p_global[i + thread_rank] = p;
+    }
   }
-}
-    
+
   __syncthreads();
 
   typedef cub::WarpReduce<float> WarpReduce;
@@ -373,25 +370,25 @@ for(int i = 0;i < n; i+= n_thread){
 
   float my_a[SHARE_MAX_VOXEL_SIZE][12];
   __shared__ float res[SHARE_MAX_VOXEL_SIZE][12];
-  #pragma unroll
-  for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
-    #pragma unroll
-    for(int j = 0;j < 12;j++){
+#pragma unroll
+  for (int i = 0; i < SHARE_MAX_VOXEL_SIZE; i++) {
+#pragma unroll
+    for (int j = 0; j < 12; j++) {
       float aggregate = WarpReduce(temp_storage).Sum(my_a[i][j]);
-      if(thread_rank == 0) res[i][j] = aggregate;
+      if (thread_rank == 0) res[i][j] = aggregate;
       __syncthreads();
     }
   }
 
   accumulator_t *a_global = args.a0;
-  for(int i = 0;i < SHARE_MAX_VOXEL_SIZE; i++){
+  for (int i = 0; i < SHARE_MAX_VOXEL_SIZE; i++) {
     if (thread_rank < 12) {
       float real_a = res[i][thread_rank];
-      atomicAdd( ((float *)a_global + f_shared_index[i]) + thread_rank ,
-      real_a );
+      atomicAdd(((float *)a_global + f_shared_index[i]) + thread_rank,
+                real_a);
     }
   }
-/*  int my_a[SHARE_MAX_VOXEL_SIZE][12];
+  /*  int my_a[SHARE_MAX_VOXEL_SIZE][12];
   __shared__ int res[SHARE_MAX_VOXEL_SIZE][12];
   const float two_p_28 = (float)(1<<28);
   #pragma unroll
@@ -420,8 +417,6 @@ for(int i = 0;i < n; i+= n_thread){
       real_a );
     }
   }*/
-
-
 }
 
-#endif // __useless
+#endif  // __useless

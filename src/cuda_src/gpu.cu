@@ -14,10 +14,26 @@
 #include "sort_p_gpu.cuh"
 
 namespace vpic_gpu {
+
+  enum { MAX_PBC = 32,
+    MAX_SP = 32 };
+
 gpu_memory_allocator gm;
+cudaStream_t sp_streams[MAX_SP];
 const int DEFAULT_NUM_THREAD = 32;
 const int DEFAULT_NP_STRIDE_SIZE = 4096;
 const int DEFAULT_NM_STRIDE_SIZE = 256;
+
+void mpiSetDevice(int rank) {
+  cudaSetDevice(rank);
+}
+void cudaInitSpeciesStream(species_t *sp_list){
+  species_t *sp;
+  LIST_FOR_EACH(sp, sp_list){
+    MY_MESSAGE(("Creating cuda stream on %s at id:%d", sp->name, sp->id));
+    cudaStreamCreate(&sp_streams[sp->id]);
+  }
+}
 
 void sort_p_gpu_launcher(species_t *sp) {
   const int num_threads = 32;
@@ -59,9 +75,7 @@ void sort_p_gpu_launcher(species_t *sp) {
   if (d_temp_storage) CubDebugExit(g_allocator.DeviceFree(d_temp_storage));
 }
 
-void mpiSetDevice(int rank) {
-  cudaSetDevice(rank);
-}
+
 
 void advance_p_gpu_launcher(advance_p_pipeline_args_t *args, species_t *sp) {
   int num_threads, num_blocks, stride_size;
@@ -205,7 +219,6 @@ void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia) {
   int num_threads, num_blocks, stride_size;
 
   species_t *sp;
-
   LIST_FOR_EACH(sp, sp_list) {
     energy_p_gpu_args gpu_args;
     
@@ -220,14 +233,15 @@ void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia) {
     gpu_args.en = (double *)gm.copy_to_device((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
     
     stride_size = DEFAULT_NP_STRIDE_SIZE;
-    num_threads = 512;
+    num_threads = DEFAULT_NUM_THREAD;
     num_blocks = MATH_CEIL(sp->np, stride_size);
     gpu_args.stride_size = stride_size;
-    energy_p_gpu<<<num_blocks, num_threads>>>(gpu_args);
+    energy_p_gpu<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(gpu_args);
   }
 }
 
 double energy_p_gpu_stage_2(species_t *sp, interpolator_array_t *ia) {
+  cudaStreamSynchronize(sp_streams[sp->id]);
   gm.copy_to_host((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
 
   double local = energy_p_gpu_en[sp->id];

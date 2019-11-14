@@ -18,6 +18,9 @@ int vpic_simulation::advance(void) {
 
 #ifdef USE_GPU
   vpic_gpu::mpiSetDevice(world_rank);
+  if(step() == 0){
+    vpic_gpu::cudaInitSpeciesStream(species_list);
+  }
 #endif
   // Determine if we are done ... see note below why this is done here
 
@@ -86,18 +89,13 @@ int vpic_simulation::advance(void) {
                   field_array, accumulator_array );
   TOC( boundary_p, num_comm_round );
 #endif
-  //vpic_gpu::boundary_p_gpu_finalize(species_list);
 
   LIST_FOR_EACH( sp, species_list ) {
     if( sp->nm && verbose ){
       WARNING(( "Removing %i particles associated with unprocessed %s movers (increase num_comm_round)",
                 sp->nm, sp->name ));
     }
-#ifdef USE_GPU
-    if ( sp->nm ){
-      // ERROR( ("This is not supported in GPU version") );
-    }
-#endif
+
     // Drop the particles that have unprocessed movers due to a user defined
     // boundary condition. Particles of this type with unprocessed movers are
     // in the list of particles and move_p has set the voxel in the particle to

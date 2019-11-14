@@ -131,11 +131,13 @@ void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const i
     args[sp->id].stride_size = stride_size;
     handle_particle_movers<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(args[sp->id], temp_nm);
     // handle_particle_movers<<<num_blocks, num_threads>>>(gpu_args, temp_nm);
+    // cudaMemsetAsync(device_nm, 0, sizeof(int), sp_streams[sp->id]);
+    cudaMemcpyAsync(&sp->nm, device_nm, sizeof(int), cudaMemcpyDeviceToHost, sp_streams[sp->id]);
   }
 
   LIST_FOR_EACH(sp, sp_list){
     cudaStreamSynchronize(sp_streams[sp->id]);
-    gm.copy_to_host(&sp->nm, sizeof(int));
+    // gm.copy_to_host(&sp->nm, sizeof(int));
   }
   gm.copy_to_host(aa->a, sizeof(accumulator_t) * aa->g->nv);
 }

@@ -40,14 +40,11 @@ for(int n = itmp; n < itmp + size; n += n_thread){
     dz  = p.dz;
     i   = p.i;
 
-    // if(i < 0){
-    //   printf("energy_p: ERROR idx %d@%d\n", i, n + thread_rank);
-    // }
 
-    if( i != prev_i){
-      f = f_global[i];
-      prev_i = i;
-    }
+    f = f_global[i];
+    // if( i != prev_i){
+    //   prev_i = i;
+    // }
 
     v0  = p.ux + qdt_2mc*(    ( f.ex    + dy*f.dexdy    ) +
                               dz*( f.dexdz + dy*f.d2exdydz ) );
@@ -70,5 +67,5 @@ for(int n = itmp; n < itmp + size; n += n_thread){
   typedef cub::WarpReduce<double> WarpReduce;
   __shared__ typename WarpReduce::TempStorage temp_storage;
   double sum_en = WarpReduce(temp_storage).Sum(en);
-  if(thread_rank == 0) atomicAdd(args.en, sum_en);
+  if(thread_rank == 0) atomicAdd(args.en, sum_en); // TODO:sum_en
 }

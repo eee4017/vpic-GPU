@@ -36,7 +36,8 @@ namespace vpic_gpu{
 
       CubDebugExit(g_allocator.DeviceAllocate((void**)&d_keys.d_buffers[0], sizeof(int32_t) * num_items));
       CubDebugExit(g_allocator.DeviceAllocate((void**)&d_keys.d_buffers[1], sizeof(int32_t) * num_items));
-      CubDebugExit(g_allocator.DeviceAllocate((void**)&d_values.d_buffers[0], sizeof(particle_t) * num_items));
+      // CubDebugExit(g_allocator.DeviceAllocate((void**)&d_values.d_buffers[0], sizeof(particle_t) * num_items));
+      d_values.d_buffers[0] = device_p;
       CubDebugExit(g_allocator.DeviceAllocate((void**)&d_values.d_buffers[1], sizeof(particle_t) * num_items));
 
       // Allocate temporary storage
@@ -48,7 +49,7 @@ namespace vpic_gpu{
 
       // Initialize device arrays
       copy_particle_index<<<num_blocks, num_threads>>>(d_keys.d_buffers[0]  , device_p, num_items);
-      copy_particle      <<<num_blocks, num_threads>>>(d_values.d_buffers[0], device_p, num_items);
+      // copy_particle      <<<num_blocks, num_threads>>>(d_values.d_buffers[0], device_p, num_items);
 
       // Run
       CubDebugExit(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_keys, d_values, num_items));
@@ -59,7 +60,7 @@ namespace vpic_gpu{
       // Cleanup
       if (d_keys.d_buffers[0]) CubDebugExit(g_allocator.DeviceFree(d_keys.d_buffers[0]));
       if (d_keys.d_buffers[1]) CubDebugExit(g_allocator.DeviceFree(d_keys.d_buffers[1]));
-      if (d_values.d_buffers[0]) CubDebugExit(g_allocator.DeviceFree(d_values.d_buffers[0]));
+      // if (d_values.d_buffers[0]) CubDebugExit(g_allocator.DeviceFree(d_values.d_buffers[0]));
       if (d_values.d_buffers[1]) CubDebugExit(g_allocator.DeviceFree(d_values.d_buffers[1]));
       if (d_temp_storage) CubDebugExit(g_allocator.DeviceFree(d_temp_storage));
     }
@@ -127,15 +128,14 @@ namespace vpic_gpu{
         gm.copy_to_host(args->a0, sizeof(accumulator_t) * args->g->nv);
         gm.copy_to_host(&sp->nm, sizeof(int));
 
-
-        auto cmp = [&](const particle_mover_t& a, const particle_mover_t& b){                                                                                            
-          return a.i<b.i;                                                                                                                                                
-        };                                                                                                                                                               
+        // auto cmp = [&](const particle_mover_t& a, const particle_mover_t& b){                                                                                            
+        //   return a.i<b.i;                                                                                                                                                
+        // };                                                                                                                                                               
                                                                                                                                                                          
-        // gm.copy_to_host(args->p0, sizeof(particle_t) * sp->max_np);                                                                                                        
-        gm.copy_to_host(args->pm, sizeof(particle_mover_t) * sp->nm);                                                                                                    
-        std::sort(args->pm, args->pm+sp->nm, cmp);  
-        gm.copy_to_device(args->pm, sizeof(particle_mover_t) * sp->nm);                                                                                                    
+        // // gm.copy_to_host(args->p0, sizeof(particle_t) * sp->max_np);                                                                                                        
+        // gm.copy_to_host(args->pm, sizeof(particle_mover_t) * sp->nm);                                                                                                    
+        // std::sort(args->pm, args->pm+sp->nm, cmp);  
+        // gm.copy_to_device(args->pm, sizeof(particle_mover_t) * sp->nm);                                                                                                    
 
         // printf("%s sp->nm:%d\n", sp->name, sp->nm);  
         // MY_MESSAGE(("p %p, np %d", sp->p, sp->np));
@@ -279,8 +279,8 @@ namespace vpic_gpu{
       gpu_args.block_size = block_size;
       energy_p_gpu_en[sp->id] = 0.0;
 
-      int devideIDX;
-      cudaGetDevice(&devideIDX);
+      // int devideIDX;
+      // cudaGetDevice(&devideIDX);
       
       gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)sp->p, sizeof(particle_t) * sp->max_np);
       gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)ia->i, sizeof(interpolator_t) * sp->g->nv);
@@ -288,7 +288,7 @@ namespace vpic_gpu{
       
       {
         // MY_MESSAGE(("checking %s: p %p, np %d, nv %d", sp->name, sp->p, sp->np, sp->g->nv));
-        check_p_idx<<<MATH_CEIL(sp->np, 512), 512>>>(devideIDX, gpu_args.p, sp->g->nv, sp->np);
+        // check_p_idx<<<MATH_CEIL(sp->np, 512), 512>>>(devideIDX, gpu_args.p, sp->g->nv, sp->np);
       }
 
       // cudaDeviceSynchronize();

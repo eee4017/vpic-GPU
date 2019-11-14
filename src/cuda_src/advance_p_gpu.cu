@@ -73,8 +73,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
     particle_t p = p_global[block_i + thread_rank];
     f = f_global[p.i];
-
-
+    
     dx = p.dx;  // Load position
     dy = p.dy;
     dz = p.dz;
@@ -163,7 +162,15 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
       float *a = (float *)(a_global + p.i);  // Get accumulator
 
-
+      // if(prev_i != p.i){
+      //   float *a = (float *)(a_global + p.i);  // Get accumulator
+      //   #pragma unroll
+      //   for(int i = 0;i < 12; i++){
+      //     atomicAdd( &a[i], a_register[i] );
+      //     a_register[i] = 0.0f;
+      //   }
+      //   prev_i = p.i;
+      // }
 #define ACCUMULATE_J(X, Y, Z, offset)                         \
   v4 = q * u##X;   /* v2 = q ux                            */ \
   v1 = v4 * d##Y;  /* v1 = q ux dy                         */ \
@@ -183,10 +190,15 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   atomicAdd( a + offset + 1, v1 ); \
   atomicAdd( a + offset + 2, v2 ); \
   atomicAdd( a + offset + 3, v3 ); 
-
+  // a_register[offset + 0] = v0;  \
+  // a_register[offset + 1] = v1;  \
+  // a_register[offset + 2] = v2;  \
+  // a_register[offset + 3] = v3; 
       ACCUMULATE_J(x, y, z, 0);
       ACCUMULATE_J(y, z, x, 4);
       ACCUMULATE_J(z, x, y, 8);
+  
+
 
 #undef ACCUMULATE_J
 
@@ -205,5 +217,13 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
     p_global[block_i + thread_rank] = p;
   }
 }
+
+// {
+//   float *a = (float *)(a_global + prev_i);  // Get accumulator
+//   #pragma unroll
+//   for(int i = 0;i < 12; i++){
+//     atomicAdd( &a[prev_i], a_register[prev_i] );
+//   }
+// }
 
 }

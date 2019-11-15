@@ -16,11 +16,7 @@ energy_p_gpu(energy_p_gpu_args args) {
   const double msp = args.msp;
   const double one = 1.0;
 
-  // double dx, dy, dz;
-  // double v0, v1, v2;
-
   double en = 0.0;
-
 
   for (int pid = bstart + threadIdx.x; pid < bend; pid += blockDim.x) {
       const particle_t& p = p_global[pid];
@@ -29,7 +25,6 @@ energy_p_gpu(energy_p_gpu_args args) {
       const double dz = p.dz;
 
       const interpolator_t& f = f_global[p.i];
-      // f = f_global[p.i];
       
       double v0 = p.ux + qdt_2mc * ((f.ex + dy * f.dexdy) +
                              dz * (f.dexdz + dy * f.d2exdydz));
@@ -47,10 +42,11 @@ energy_p_gpu(energy_p_gpu_args args) {
       en += (double)v0;
   }
 
-  atomicAdd(args.en, en);
-  // __syncthreads();
-  // typedef cub::WarpReduce<double> WarpReduce;
-  // __shared__ typename WarpReduce::TempStorage temp_storage;
-  // double sum_en = WarpReduce(temp_storage).Sum(en);
+  __syncthreads();
+  typedef cub::WarpReduce<double> WarpReduce;
+  __shared__ typename WarpReduce::TempStorage temp_storage;
+  double sum_en = WarpReduce(temp_storage).Sum(en);
+  if (threadIdx.x % 32 == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
+  // if ((threadIdx.x & 0x11111) == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
   // if (thread_rank == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
 }

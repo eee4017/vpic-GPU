@@ -26,8 +26,8 @@ const int DEFAULT_NM_STRIDE_SIZE = 256;
 
 void mpiSetDevice(int rank) {
   cudaSetDevice(rank);
-  cudaFuncSetCacheConfig(advance_p_gpu, cudaFuncCachePreferL1);
 }
+
 void cudaInitSpeciesStream(species_t *sp_list) {
   species_t *sp;
   LIST_FOR_EACH(sp, sp_list) {

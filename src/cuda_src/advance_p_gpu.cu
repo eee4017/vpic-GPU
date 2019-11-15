@@ -48,9 +48,10 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
       particle_t& p = args.p0[pid];
       const interpolator_t& f = args.f0[p.i];
 
-      float dx = p.dx;  // Load position
-      float dy = p.dy;
-      float dz = p.dz;
+      register float4 dxyz = reinterpret_cast<float4*>(&p.dx)[0];
+      float& dx = dxyz.x;  // Load position
+      float& dy = dxyz.y;
+      float& dz = dxyz.z;
 
       float hax = args.qdt_2mc * ((f.ex + dy * f.dexdy) + dz * (f.dexdz + dy * f.d2exdydz));
       float hay = args.qdt_2mc * ((f.ey + dz * f.deydz) + dx * (f.deydx + dz * f.d2eydzdx));
@@ -60,10 +61,12 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
       float cby = f.cby + dy * f.dcbydy;
       float cbz = f.cbz + dz * f.dcbzdz;
 
-      float ux = p.ux;  // Load momentum
-      float uy = p.uy;
-      float uz = p.uz;
-
+      register float4 uxyz = reinterpret_cast<float4*>(&p.ux)[0];
+      float& ux = uxyz.x;  // Load momentum
+      float& uy = uxyz.y;
+      float& uz = uxyz.z;
+      float& q  = uxyz.w;
+      
       ux += hax;  // Half advance E
       uy += hay;
       uz += haz;
@@ -120,12 +123,14 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
         // the total physical charge that passed through the appropriate
         // current quadrant in a time-step.
 
-        float q = p.w;
+        // float q = p.w;
         q *= args.qsp;
 
         p.dx = v3;  // Store new position
         p.dy = v4;
         p.dz = v5;
+        // reinterpret_cast<float2*>(&p.dx)[0] = make_float2(v3, v4);
+        // p.dz = v5;
 
         dx = v0;  // Streak midpoint
         dy = v1;

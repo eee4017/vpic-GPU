@@ -6,9 +6,7 @@
 #include "gpu_util.cuh"
 #include "move_p_gpu.cuh"
 
-#define SHARE_MAX_VOXEL_SIZE 2  // 18
-
-__global__ void handle_particle_movers(advance_p_gpu_args args, int temp_nm) {
+__global__ void handle_particle_movers(handle_args args, int temp_nm) {
   const int block_rank = blockIdx.x;
   const int n_block = gridDim.x;
   const int thread_rank = threadIdx.x;
@@ -37,70 +35,46 @@ __global__ void handle_particle_movers(advance_p_gpu_args args, int temp_nm) {
   }
 }
 
+#define one 1.f
+
 __global__ void advance_p_gpu(advance_p_gpu_args args) {
-  const int block_rank = blockIdx.x;
-  const int n_block = gridDim.x;
-  const int thread_rank = threadIdx.x;
-  const int n_thread = blockDim.x;
-  const int stride_size = args.stride_size;
+  const int bstart = blockIdx.x * args.stride_size;
+  const int bend = min((blockIdx.x + 1) * args.stride_size, args.np);
 
-  const float qdt_2mc = args.qdt_2mc;
-  const float cdt_dx = args.cdt_dx;
-  const float cdt_dy = args.cdt_dy;
-  const float cdt_dz = args.cdt_dz;
-  const float qsp = args.qsp;
-  const float one = 1.0;
-  const float one_third = 1.0 / 3.0;
-  const float two_fifteenths = 2.0 / 15.0;
+  const float one_third = 1.f / 3.f;
+  const float two_fifteenths = 2.f / 15.f;
 
-  float dx, dy, dz, ux, uy, uz, q;
-  float hax, hay, haz, cbx, cby, cbz;
-  float v0, v1, v2, v3, v4, v5;
-  int itmp, n;
-  int *nm = args.nm;
+  for (int pid = bstart + threadIdx.x; pid < bend; pid += blockDim.x) {
+      particle_t& p = args.p0[pid];
+      const interpolator_t& f = args.f0[p.i];
 
-  GPU_DISTRIBUTE(args.np, stride_size, block_rank, itmp, n);
-  particle_t *p_global = args.p0;
-  accumulator_t *a_global = args.a0;
-  particle_mover_t *pm_array_global = args.temp_pm_array;
-  particle_mover_t pm;
-  const interpolator_t *f_global = args.f0;
-  int prev_i = -1;
+      float dx = p.dx;  // Load position
+      float dy = p.dy;
+      float dz = p.dz;
 
-  interpolator_t f;
-  for (int block_i = itmp; block_i < itmp + n; block_i += n_thread) {
-    if (block_i + thread_rank < itmp + n) {
-      particle_t p = p_global[block_i + thread_rank];
-      f = f_global[p.i];
+      float hax = args.qdt_2mc * ((f.ex + dy * f.dexdy) + dz * (f.dexdz + dy * f.d2exdydz));
+      float hay = args.qdt_2mc * ((f.ey + dz * f.deydz) + dx * (f.deydx + dz * f.d2eydzdx));
+      float haz = args.qdt_2mc * ((f.ez + dx * f.dezdx) + dy * (f.dezdy + dx * f.d2ezdxdy));
 
-      dx = p.dx;  // Load position
-      dy = p.dy;
-      dz = p.dz;
+      float cbx = f.cbx + dx * f.dcbxdx;  // Interpolate B
+      float cby = f.cby + dy * f.dcbydy;
+      float cbz = f.cbz + dz * f.dcbzdz;
 
-      hax = qdt_2mc * ((f.ex + dy * f.dexdy) + dz * (f.dexdz + dy * f.d2exdydz));
-      hay = qdt_2mc * ((f.ey + dz * f.deydz) + dx * (f.deydx + dz * f.d2eydzdx));
-      haz = qdt_2mc * ((f.ez + dx * f.dezdx) + dy * (f.dezdy + dx * f.d2ezdxdy));
-
-      cbx = f.cbx + dx * f.dcbxdx;  // Interpolate B
-      cby = f.cby + dy * f.dcbydy;
-      cbz = f.cbz + dz * f.dcbzdz;
-
-      ux = p.ux;  // Load momentum
-      uy = p.uy;
-      uz = p.uz;
-      q = p.w;
+      float ux = p.ux;  // Load momentum
+      float uy = p.uy;
+      float uz = p.uz;
 
       ux += hax;  // Half advance E
       uy += hay;
       uz += haz;
 
-      v0 = qdt_2mc * rsqrtf(one + (ux * ux + (uy * uy + uz * uz)));
+      float v0 = args.qdt_2mc * rsqrtf(one + (ux * ux + (uy * uy + uz * uz)));
 
       // Boris - scalars
-      v1 = cbx * cbx + (cby * cby + cbz * cbz);
-      v2 = (v0 * v0) * v1;
-      v3 = v0 * (one + v2 * (one_third + v2 * two_fifteenths));
-      v4 = v3 / (one + v1 * (v3 * v3));
+      float v1 = cbx * cbx + (cby * cby + cbz * cbz);
+      float v2 = (v0 * v0) * v1;
+      float v3 = v0 * (one + v2 * (one_third + v2 * two_fifteenths));
+      float v4 = v3 / (one + v1 * (v3 * v3));
       v4 += v4;
 
       v0 = ux + v3 * (uy * cbz - uz * cby);  // Boris - uprime
@@ -115,7 +89,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
       uy += hay;
       uz += haz;
 
-      p.ux = ux;  // Store momentum
+      p.ux = ux;  // Store new position
       p.uy = uy;
       p.uz = uz;
 
@@ -123,9 +97,9 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
       // Get norm displacement
 
-      ux *= cdt_dx;
-      uy *= cdt_dy;
-      uz *= cdt_dz;
+      ux *= args.cdt_dx;
+      uy *= args.cdt_dy;
+      uz *= args.cdt_dz;
 
       ux *= v0;
       uy *= v0;
@@ -137,7 +111,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
       v3 = v0 + ux;  // New position
       v4 = v1 + uy;
-      v5 = v2 + uz;
+      float v5 = v2 + uz;
 
       // FIXME-KJB: COULD SHORT CIRCUIT ACCUMULATION IN THE CASE WHERE QSP==0!
       if (v3 <= one && v4 <= one && v5 <= one &&  // Check if inbnds
@@ -146,7 +120,8 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
         // the total physical charge that passed through the appropriate
         // current quadrant in a time-step.
 
-        q *= qsp;
+        float q = p.w;
+        q *= args.qsp;
 
         p.dx = v3;  // Store new position
         p.dy = v4;
@@ -158,7 +133,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 
         v5 = q * ux * uy * uz * one_third;  // Compute correction
 
-        float *a = (float *)(a_global + p.i);  // Get accumulator
+        float *a = (float *)(args.a0 + p.i);  // Get accumulator
 
 #define ACCUMULATE_J(X, Y, Z, offset)                         \
   v4 = q * u##X;   /* v2 = q ux                            */ \
@@ -187,18 +162,13 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
 #undef ACCUMULATE_J
 
       } else {
+        particle_mover_t pm;
         pm.dispx = ux;
         pm.dispy = uy;
         pm.dispz = uz;
-
-        pm.i = block_i + thread_rank;
-
-        int the = atomicAdd(nm, 1);
-        pm_array_global[the] = pm;
+        pm.i = pid;
+        int the = atomicAdd(args.nm, 1);
+        reinterpret_cast<float4*>(args.temp_pm_array)[the] = reinterpret_cast<float4*>(&pm)[0];
       }
-
-      p_global[block_i + thread_rank] = p;
-    }
   }
-
 }

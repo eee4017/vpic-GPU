@@ -5,10 +5,8 @@
 
 __global__ void
 energy_p_gpu(energy_p_gpu_args args) {
-  const int block_rank = blockIdx.x;
-  const int n_block = gridDim.x;
-  const int thread_rank = threadIdx.x;
-  const int n_thread = blockDim.x;
+  const int bstart = blockIdx.x * args.stride_size;
+  const int bend = min((blockIdx.x + 1) * args.stride_size, args.np);
   const int stride_size = args.stride_size;
 
   const interpolator_t *f_global = args.f;
@@ -18,34 +16,23 @@ energy_p_gpu(energy_p_gpu_args args) {
   const double msp = args.msp;
   const double one = 1.0;
 
-  double dx, dy, dz;
-  double v0, v1, v2;
-
   double en = 0.0;
 
-  int i, itmp, size;
-  GPU_DISTRIBUTE(args.np, stride_size, block_rank, itmp, size);
+  for (int pid = bstart + threadIdx.x; pid < bend; pid += blockDim.x) {
+      const particle_t& p = p_global[pid];
+      const double dx = p.dx;
+      const double dy = p.dy;
+      const double dz = p.dz;
 
-  int prev_i = -1;
-  interpolator_t f;
-
-  for (int n = itmp; n < itmp + size; n += n_thread) {
-    if (n + thread_rank < itmp + size) {
-      particle_t p = p_global[n + thread_rank];
-      dx = p.dx;
-      dy = p.dy;
-      dz = p.dz;
-      i = p.i;
-
-      f = f_global[i];
+      const interpolator_t& f = f_global[p.i];
       
-      v0 = p.ux + qdt_2mc * ((f.ex + dy * f.dexdy) +
+      double v0 = p.ux + qdt_2mc * ((f.ex + dy * f.dexdy) +
                              dz * (f.dexdz + dy * f.d2exdydz));
 
-      v1 = p.uy + qdt_2mc * ((f.ey + dz * f.deydz) +
+      double v1 = p.uy + qdt_2mc * ((f.ey + dz * f.deydz) +
                              dx * (f.deydx + dz * f.d2eydzdx));
 
-      v2 = p.uz + qdt_2mc * ((f.ez + dx * f.dezdx) +
+      double v2 = p.uz + qdt_2mc * ((f.ez + dx * f.dezdx) +
                              dy * (f.dezdy + dx * f.d2ezdxdy));
 
       v0 = v0 * v0 + v1 * v1 + v2 * v2;
@@ -53,12 +40,13 @@ energy_p_gpu(energy_p_gpu_args args) {
       v0 = (msp * p.w) * (v0 / (one + sqrtf(one + v0)));
 
       en += (double)v0;
-    }
   }
 
   __syncthreads();
   typedef cub::WarpReduce<double> WarpReduce;
   __shared__ typename WarpReduce::TempStorage temp_storage;
   double sum_en = WarpReduce(temp_storage).Sum(en);
-  if (thread_rank == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
+  if (threadIdx.x % 32 == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
+  // if ((threadIdx.x & 0x11111) == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
+  // if (thread_rank == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
 }

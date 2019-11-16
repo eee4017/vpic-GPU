@@ -18,7 +18,7 @@ src_dir="${0%/*}/.."
 
 echo $src_dir
 
-cmake \
+cmake3 \
   -DCUDA_CUDART_LIBRARY=/usr/local/cuda/lib64/libcudart.so \
   -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_INTEGRATED_TESTS=OFF \
@@ -27,7 +27,7 @@ cmake \
   -DCMAKE_CXX_COMPILER=mpiicpc \
   -DCMAKE_C_FLAGS="-g -fp-model=precise -DDEBUG -O3 -rdynamic" \
   -DCMAKE_CXX_FLAGS="-g -fp-model=precise -DDEBUG -O3 -rdynamic" \
-  -DCMAKE_CUDA_FLAGS="-g -G -DDEBUG -O3 --default-stream per-thread -gencode arch=compute_60,code=sm_70 "\
+  -DCMAKE_CUDA_FLAGS="-O3 --default-stream per-thread -Xptxas=-v -gencode arch=compute_70,code=sm_70" \
   -DUSE_V4_SSE=ON \
   -DUSE_V4_AVX=ON \
   -DUSE_V4_AVX2=ON \

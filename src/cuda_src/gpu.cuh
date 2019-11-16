@@ -35,6 +35,7 @@ void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm, int pi_cnt, 
 void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia);
 void accumulate_rho_p_gpu_launcher(field_array_t *, const species_t *);
 double energy_p_gpu_stage_2(species_t *sp, interpolator_array_t *ia);
+void copy_p_back(species_t *sp);
 
 
 template <typename T>

@@ -126,6 +126,8 @@ public:
   int advance( void );
   void finalize( void );
 
+  void copy_p_back(void);
+
 protected:
 
   // Directly initialized by user

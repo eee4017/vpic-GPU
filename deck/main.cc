@@ -46,6 +46,7 @@ vpic_simulation** restore_main(void)
  */
 void checkpt(const char* fbase, int tag)
 {
+    simulation->copy_p_back();
     char fname[256];
     if( !fbase ) ERROR(( "NULL filename base" ));
     sprintf( fname, "%s.%i.%i", fbase, tag, world_rank );

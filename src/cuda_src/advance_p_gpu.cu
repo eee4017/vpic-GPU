@@ -44,7 +44,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const float one_third = 1.f / 3.f;
   const float two_fifteenths = 2.f / 15.f;
 
-//   #pragma unroll 4
+  #pragma unroll 2
   for (int pid = bstart + threadIdx.x; pid < bend; pid += blockDim.x) {
       particle_t& p = args.p0[pid];
       const interpolator_t& f = args.f0[p.i];

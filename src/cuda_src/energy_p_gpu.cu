@@ -42,11 +42,13 @@ energy_p_gpu(energy_p_gpu_args args) {
       en += (double)v0;
   }
 
+  // atomicAdd(args.en, en);
   __syncthreads();
   typedef cub::WarpReduce<double> WarpReduce;
   __shared__ typename WarpReduce::TempStorage temp_storage;
   double sum_en = WarpReduce(temp_storage).Sum(en);
-  if (threadIdx.x % 32 == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
+  if (threadIdx.x == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
+  // if (threadIdx.x % 32 == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
   // if ((threadIdx.x & 0x11111) == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
   // if (thread_rank == 0) atomicAdd(args.en, sum_en);  // TODO:sum_en
 }

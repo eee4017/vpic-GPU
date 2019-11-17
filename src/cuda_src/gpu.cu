@@ -249,13 +249,14 @@ void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia) {
 
     energy_p_gpu_en[sp->id] = 0.0;
 
-    gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)sp->p, sizeof(particle_t) * sp->max_np);
-    gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)ia->i, sizeof(interpolator_t) * sp->g->nv);
-    gpu_args.en = (double *)gm.copy_to_device((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
+    gpu_args.p = (particle_t *)gm.map_to_device((host_pointer)sp->p, sp_streams[sp->id], sizeof(particle_t) * sp->max_np);
+    gpu_args.f = (interpolator_t *)gm.map_to_device((host_pointer)ia->i, sp_streams[sp->id], sizeof(interpolator_t) * sp->g->nv);
+    gpu_args.en = (double *)gm.copy_to_device((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double), sp_streams[sp->id]);
 
-    stride_size = DEFAULT_NP_STRIDE_SIZE;
+    // stride_size = DEFAULT_NP_STRIDE_SIZE;
     // num_threads = DEFAULT_NUM_THREAD;
-    num_threads = 128;
+    stride_size = 128;
+    num_threads = 32;
     num_blocks = MATH_CEIL(sp->np, stride_size);
     gpu_args.stride_size = stride_size;
     energy_p_gpu<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(gpu_args);

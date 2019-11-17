@@ -28,11 +28,17 @@ void mpiSetDevice(int rank) {
   cudaSetDevice(rank);
 }
 
-void cudaInitSpeciesStream(species_t *sp_list) {
+void cudaInitSpeciesStream(species_t *sp_list, accumulator_array_t *aa, const interpolator_array_t *ia) {
   species_t *sp;
   LIST_FOR_EACH(sp, sp_list) {
     MY_MESSAGE(("Creating cuda stream on %s at id:%d", sp->name, sp->id));
     cudaStreamCreate(&sp_streams[sp->id]);
+    cudaHostRegister(sp->p, sizeof(particle_t) * sp->max_np, cudaHostRegisterDefault);
+    // cudaHostRegister(sp->g->neighbor, sizeof(int64_t) * sp->g->nv * 6, cudaHostRegisterDefault);
+    // cudaHostRegister(sp->pm, sizeof(particle_mover_t) * sp->max_nm, cudaHostRegisterDefault);
+    // cudaHostRegister(&sp->nm, sizeof(int), cudaHostRegisterDefault);
+    // cudaHostRegister(aa->a, sizeof(accumulator_t) * aa->g->nv, cudaHostRegisterDefault);
+    // gpuErrchk(cudaHostRegister(ia->i, sizeof(interpolator_t) * ia->g->nv, cudaHostRegisterDefault));
   }
 }
 
@@ -79,17 +85,17 @@ void sort_p_gpu_launcher(species_t *sp) {
 void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const interpolator_array_t *ia) {
   int num_threads, num_blocks, stride_size;
   advance_p_gpu_args gpu_args;
-  handle_args hgpu_args;
   species_t *sp;
 
-  gpu_args.a0 = (accumulator_t *)gm.map_to_device(aa->a, sizeof(accumulator_t) * aa->g->nv);
-  hgpu_args.a0 = gpu_args.a0;
-  cudaMemset(gpu_args.a0, 0, sizeof(accumulator_t) * aa->g->nv);  // clear accumulator array
-  gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)ia->i, sizeof(interpolator_t) * ia->g->nv);
-  hgpu_args.f0 = gpu_args.f0;
+  // gpu_args.a0 = (accumulator_t *)gm.map_to_device(aa->a, sizeof(accumulator_t) * aa->g->nv);
+  // cudaMemset(gpu_args.a0, 0, sizeof(accumulator_t) * aa->g->nv);  // clear accumulator array
+  // gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)ia->i, sizeof(interpolator_t) * ia->g->nv);
+  gpu_args.a0 = (accumulator_t *)gm.map_to_device(aa->a, sp_streams[sp_list->id], sizeof(accumulator_t) * aa->g->nv);
+  cudaMemsetAsync(gpu_args.a0, 0, sizeof(accumulator_t) * aa->g->nv, sp_streams[sp_list->id]);  // clear accumulator array
+  gpu_args.f0 = (interpolator_t *)gm.copy_to_device((host_pointer)ia->i, sizeof(interpolator_t) * ia->g->nv, sp_streams[sp_list->id]);
 
-  // std::vector<advance_p_gpu_args> args(MAX_SP);
-  std::vector<handle_args> args(MAX_SP);
+  std::vector<advance_p_gpu_args> args(MAX_SP);
+
   LIST_FOR_EACH(sp, sp_list) {
     gpu_args.qdt_2mc = (sp->q * sp->g->dt) / (2 * sp->m * sp->g->cvac);
     gpu_args.cdt_dx = sp->g->cvac * sp->g->dt * sp->g->rdx;
@@ -97,67 +103,44 @@ void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const i
     gpu_args.cdt_dz = sp->g->cvac * sp->g->dt * sp->g->rdz;
     gpu_args.qsp = sp->q;
     gpu_args.np = sp->np;
+    gpu_args.g_rangel = sp->g->rangel;
+    gpu_args.g_rangeh = sp->g->rangeh;
+    gpu_args.g_neighbor = (int64_t *)gm.map_to_device(sp->g->neighbor, sp_streams[sp->id], sizeof(int64_t) * sp->g->nv * 6);
 
-    hgpu_args.qdt_2mc = (sp->q * sp->g->dt) / (2 * sp->m * sp->g->cvac);
-    hgpu_args.cdt_dx = sp->g->cvac * sp->g->dt * sp->g->rdx;
-    hgpu_args.cdt_dy = sp->g->cvac * sp->g->dt * sp->g->rdy;
-    hgpu_args.cdt_dz = sp->g->cvac * sp->g->dt * sp->g->rdz;
-    hgpu_args.qsp = sp->q;
-    hgpu_args.np = sp->np;
-    hgpu_args.g_rangel = sp->g->rangel;
-    hgpu_args.g_rangeh = sp->g->rangeh;
-    hgpu_args.g_neighbor = (int64_t *)gm.map_to_device(sp->g->neighbor, sizeof(int64_t) * sp->g->nv * 6);
-
-    gpu_args.pm_array = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->max_nm);
-    gpu_args.temp_pm_array = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->max_nm);
-    gpu_args.p0 = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
-    hgpu_args.pm_array = gpu_args.pm_array;
-    hgpu_args.temp_pm_array = gpu_args.temp_pm_array;
-    hgpu_args.p0 = gpu_args.p0;
+    gpu_args.pm_array = (particle_mover_t *)gm.map_to_device(sp->pm, sp_streams[sp->id], sizeof(particle_mover_t) * sp->max_nm);
+    gpu_args.temp_pm_array = (particle_mover_t *)gm.map_to_device(sp->pm, sp_streams[sp->id], sizeof(particle_mover_t) * sp->max_nm);
+    gpu_args.p0 = (particle_t *)gm.map_to_device(sp->p, sp_streams[sp->id], sizeof(particle_t) * sp->max_np);
 
     sp->nm = 0;
-    gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
-    hgpu_args.nm = gpu_args.nm;
+    gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int), sp_streams[sp->id]);
 
-    // stride_size = DEFAULT_NP_STRIDE_SIZE;
     stride_size = 2048;
-    // num_threads = DEFAULT_NUM_THREAD;
     num_threads = 128;
     num_blocks = MATH_CEIL(sp->np, stride_size);
     gpu_args.stride_size = stride_size;
-    hgpu_args.stride_size = stride_size;
-
-    // args[sp->id] = gpu_args;
-    args[sp->id] = hgpu_args;
-    // advance_p_gpu<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(args[sp->id]);
+    args[sp->id] = gpu_args;
     advance_p_gpu<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(gpu_args);
   }
 
   LIST_FOR_EACH(sp ,sp_list){
-    // gm.copy_to_host(&sp->nm, sizeof(int));
-    // cudaStreamSynchronize(sp_streams[sp->id]);
-    int *device_nm = (int *)gm.map_to_device(&sp->nm, sizeof(int));
+    int *device_nm = (int *)gm.map_to_device(&sp->nm, sp_streams[sp->id], sizeof(int));
     cudaMemcpyAsync(&sp->nm, device_nm, sizeof(int), cudaMemcpyDeviceToHost, sp_streams[sp->id]);
     /*************************************************************/
     // MY_MESSAGE(("%s->nm: %d", sp->name, sp->nm));
     int temp_nm = sp->nm;
     sp->nm = 0;
     cudaMemsetAsync(device_nm, 0, sizeof(int), sp_streams[sp->id]);
-    // gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
 
     stride_size = DEFAULT_NM_STRIDE_SIZE;
     num_threads = min(temp_nm, stride_size);
     num_blocks = MATH_CEIL(temp_nm, stride_size);
     args[sp->id].stride_size = stride_size;
     handle_particle_movers<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(args[sp->id], temp_nm);
-    // handle_particle_movers<<<num_blocks, num_threads>>>(gpu_args, temp_nm);
-    // cudaMemsetAsync(device_nm, 0, sizeof(int), sp_streams[sp->id]);
     cudaMemcpyAsync(&sp->nm, device_nm, sizeof(int), cudaMemcpyDeviceToHost, sp_streams[sp->id]);
   }
 
   LIST_FOR_EACH(sp, sp_list){
     cudaStreamSynchronize(sp_streams[sp->id]);
-    // gm.copy_to_host(&sp->nm, sizeof(int));
   }
   gm.copy_to_host(aa->a, sizeof(accumulator_t) * aa->g->nv);
 }

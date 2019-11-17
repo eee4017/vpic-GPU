@@ -6,7 +6,7 @@
 #include "gpu_util.cuh"
 #include "move_p_gpu.cuh"
 
-__global__ void handle_particle_movers(handle_args args, int temp_nm) {
+__global__ void handle_particle_movers(advance_p_gpu_args args, int temp_nm) {
   const int block_rank = blockIdx.x;
   const int n_block = gridDim.x;
   const int thread_rank = threadIdx.x;

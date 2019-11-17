@@ -19,7 +19,7 @@ int vpic_simulation::advance(void) {
 #ifdef USE_GPU
   vpic_gpu::mpiSetDevice(world_rank);
   if(step() == 0){
-    vpic_gpu::cudaInitSpeciesStream(species_list);
+    vpic_gpu::cudaInitSpeciesStream(species_list, accumulator_array, interpolator_array);
   }
 #endif
   // Determine if we are done ... see note below why this is done here

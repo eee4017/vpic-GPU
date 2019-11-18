@@ -14,6 +14,11 @@
 
 /* Boolean flag indicating whether or not checkpoint is booted. */
 
+void dummy(void)
+{
+  return;
+}
+
 static int booted = 0;
 
 /* If NULL, indicates that we are not in the middle of a checkpt or a
@@ -551,6 +556,7 @@ checkpt_sym( const void * saddr ) {
     static int first_time = 1;
     if( first_time ) {
       if( !world_rank ) 
+        dummy();
         /*WARNING(( "Checkpointing was compiled without reverse symbol table "
                   "lookup support and has been asked to checkpoint at least "
                   "one symbol.  Checkpointing will likely only work correctly "
@@ -582,6 +588,7 @@ restore_sym( void ) {
 
   if( first_time ) {
     if( !world_rank ) 
+      dummy();
       /*WARNING(( "Checkpointing was compiled without reverse symbol table "
                 "lookup support and has been asked to restore at least one "
                 "symbol.  Checkpointing will likely only work correctly if "
@@ -686,7 +693,7 @@ checkpt_sym( const void * saddr ) {
        checkpoint is used to read the checkpoint).  So, we give a
        stern warning to the user that bad things are possible when
        restoring this symbol. */
-
+    dummy();
     /*WARNING(( "Unable to find a safely writable symbol that corresponds to "
               "address %lx (the closest match was \"%s\" from \"%s\").  "
               "Writing out the raw address instead and keeping my fingers "
@@ -762,6 +769,7 @@ restore_sym( void ) {
     err = dlerror();
     if( err ) ERROR(( "dladdr: %s", err ));
     if( saddr==find_saddr( dli->dli_sname, dli->dli_fname ) )
+      dummy();
       /*WARNING(( "Read a symbol that was saved unsafely as the symbol's "
                 "address (%lx) in the old symbol table.  This address "
                 "resolves to symbol \"%s\" (from \"%s\") in the current "
@@ -769,6 +777,7 @@ restore_sym( void ) {
                 "corresponds to the saved symbol.", (unsigned long)saddr,
                 dli->dli_sname, dli->dli_fname ));*/
     else
+      dummy();
       /*WARNING(( "Read a symbol that was saved unsafely as the symbol's "
                 "address (%lx) in the old symbol table.  This address was not "
                 "found in the current symbol table; the closest match is "

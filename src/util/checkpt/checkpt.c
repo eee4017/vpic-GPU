@@ -551,12 +551,12 @@ checkpt_sym( const void * saddr ) {
     static int first_time = 1;
     if( first_time ) {
       if( !world_rank ) 
-        WARNING(( "Checkpointing was compiled without reverse symbol table "
+        /*WARNING(( "Checkpointing was compiled without reverse symbol table "
                   "lookup support and has been asked to checkpoint at least "
                   "one symbol.  Checkpointing will likely only work correctly "
                   "if checkpointed symbols are statically linked in the "
                   "application and the exact same application binary is used "
-                  "for both the checkpoint and restore process." ));
+                  "for both the checkpoint and restore process." ));*/
       first_time = 0;
     }
 
@@ -582,12 +582,12 @@ restore_sym( void ) {
 
   if( first_time ) {
     if( !world_rank ) 
-      WARNING(( "Checkpointing was compiled without reverse symbol table "
+      /*WARNING(( "Checkpointing was compiled without reverse symbol table "
                 "lookup support and has been asked to restore at least one "
                 "symbol.  Checkpointing will likely only work correctly if "
                 "checkpointed symbols are statically linked in the "
                 "application and the exact same application binary is used "
-                "for both the checkpoint and restore process." ));
+                "for both the checkpoint and restore process." ));*/
     first_time = 0;
   }
 
@@ -687,12 +687,12 @@ checkpt_sym( const void * saddr ) {
        stern warning to the user that bad things are possible when
        restoring this symbol. */
 
-    WARNING(( "Unable to find a safely writable symbol that corresponds to "
+    /*WARNING(( "Unable to find a safely writable symbol that corresponds to "
               "address %lx (the closest match was \"%s\" from \"%s\").  "
               "Writing out the raw address instead and keeping my fingers "
               "crossed.\n", (unsigned long)saddr,
               !dli->dli_sname ? "(null)" : dli->dli_sname,
-              !dli->dli_fname ? "(null)" : dli->dli_fname ));
+              !dli->dli_fname ? "(null)" : dli->dli_fname ));*/
 
     CHECKPT_VAL( size_t, 0xADD7513B  );
     CHECKPT_VAL( const void *, saddr );
@@ -762,20 +762,20 @@ restore_sym( void ) {
     err = dlerror();
     if( err ) ERROR(( "dladdr: %s", err ));
     if( saddr==find_saddr( dli->dli_sname, dli->dli_fname ) )
-      WARNING(( "Read a symbol that was saved unsafely as the symbol's "
+      /*WARNING(( "Read a symbol that was saved unsafely as the symbol's "
                 "address (%lx) in the old symbol table.  This address "
                 "resolves to symbol \"%s\" (from \"%s\") in the current "
                 "symbol table.  Keeping my fingers crossed that this "
                 "corresponds to the saved symbol.", (unsigned long)saddr,
-                dli->dli_sname, dli->dli_fname ));
+                dli->dli_sname, dli->dli_fname ));*/
     else
-      WARNING(( "Read a symbol that was saved unsafely as the symbol's "
+      /*WARNING(( "Read a symbol that was saved unsafely as the symbol's "
                 "address (%lx) in the old symbol table.  This address was not "
                 "found in the current symbol table; the closest match is "
                 "symbol \"%s\" (from \"%s\") at address %lx.  Keeping my "
                 "fingers crossed that the old address still means "
                 "something.\n", (unsigned long)saddr, dli->dli_sname,
-                dli->dli_fname, (unsigned long)dli->dli_saddr ));
+                dli->dli_fname, (unsigned long)dli->dli_saddr ));*/
     break;
 
   }

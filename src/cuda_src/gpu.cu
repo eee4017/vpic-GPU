@@ -40,6 +40,7 @@ void sort_p_gpu_launcher(species_t *sp) {
   const int num_threads = 32;
   const int num_blocks = 512;
 
+  if(sp->np <= 0) return;
   particle_t *device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
 
   int num_items = sp->np;
@@ -48,32 +49,32 @@ void sort_p_gpu_launcher(species_t *sp) {
   cub::DoubleBuffer<particle_t> d_values;
   cub::CachingDeviceAllocator g_allocator(true);
 
-  CubDebugExit(g_allocator.DeviceAllocate((void **)&d_keys.d_buffers[0], sizeof(int32_t) * num_items));
-  CubDebugExit(g_allocator.DeviceAllocate((void **)&d_keys.d_buffers[1], sizeof(int32_t) * num_items));
+  gpuErrchk(g_allocator.DeviceAllocate((void **)&d_keys.d_buffers[0], sizeof(int32_t) * num_items));
+  gpuErrchk(g_allocator.DeviceAllocate((void **)&d_keys.d_buffers[1], sizeof(int32_t) * num_items));
   d_values.d_buffers[0] = device_p;
-  CubDebugExit(g_allocator.DeviceAllocate((void **)&d_values.d_buffers[1], sizeof(particle_t) * num_items));
+  gpuErrchk(g_allocator.DeviceAllocate((void **)&d_values.d_buffers[1], sizeof(particle_t) * num_items));
 
   // Allocate temporary storage
   size_t temp_storage_bytes = 0;
   void *d_temp_storage = NULL;
 
-  CubDebugExit(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_keys, d_values, num_items));
-  CubDebugExit(g_allocator.DeviceAllocate(&d_temp_storage, temp_storage_bytes));
+  gpuErrchk(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_keys, d_values, num_items));
+  gpuErrchk(g_allocator.DeviceAllocate(&d_temp_storage, temp_storage_bytes));
 
   // Initialize device arrays
   copy_particle_index<<<num_blocks, num_threads>>>(d_keys.d_buffers[0], device_p, num_items);
 
   // Run
-  CubDebugExit(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_keys, d_values, num_items));
+  gpuErrchk(cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_keys, d_values, num_items));
 
   // Copy particles back
-  CubDebugExit(cudaMemcpy(device_p, d_values.d_buffers[1], sizeof(particle_t) * num_items, cudaMemcpyDeviceToDevice));
+  gpuErrchk(cudaMemcpy(device_p, d_values.d_buffers[1], sizeof(particle_t) * num_items, cudaMemcpyDeviceToDevice));
 
   // Cleanup
-  if (d_keys.d_buffers[0]) CubDebugExit(g_allocator.DeviceFree(d_keys.d_buffers[0]));
-  if (d_keys.d_buffers[1]) CubDebugExit(g_allocator.DeviceFree(d_keys.d_buffers[1]));
-  if (d_values.d_buffers[1]) CubDebugExit(g_allocator.DeviceFree(d_values.d_buffers[1]));
-  if (d_temp_storage) CubDebugExit(g_allocator.DeviceFree(d_temp_storage));
+  if (d_keys.d_buffers[0]) gpuErrchk(g_allocator.DeviceFree(d_keys.d_buffers[0]));
+  if (d_keys.d_buffers[1]) gpuErrchk(g_allocator.DeviceFree(d_keys.d_buffers[1]));
+  if (d_values.d_buffers[1]) gpuErrchk(g_allocator.DeviceFree(d_values.d_buffers[1]));
+  if (d_temp_storage) gpuErrchk(g_allocator.DeviceFree(d_temp_storage));
 }
 
 void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const interpolator_array_t *ia) {
@@ -91,6 +92,7 @@ void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const i
   // std::vector<advance_p_gpu_args> args(MAX_SP);
   std::vector<handle_args> args(MAX_SP);
   LIST_FOR_EACH(sp, sp_list) {
+    if(sp->np <= 0) continue;
     gpu_args.qdt_2mc = (sp->q * sp->g->dt) / (2 * sp->m * sp->g->cvac);
     gpu_args.cdt_dx = sp->g->cvac * sp->g->dt * sp->g->rdx;
     gpu_args.cdt_dy = sp->g->cvac * sp->g->dt * sp->g->rdy;
@@ -134,6 +136,7 @@ void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const i
   }
 
   LIST_FOR_EACH(sp ,sp_list){
+    if(sp->np <= 0) continue;
     // gm.copy_to_host(&sp->nm, sizeof(int));
     // cudaStreamSynchronize(sp_streams[sp->id]);
     int *device_nm = (int *)gm.map_to_device(&sp->nm, sizeof(int));
@@ -146,10 +149,12 @@ void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const i
     // gpu_args.nm = (int *)gm.copy_to_device(&sp->nm, sizeof(int));
 
     stride_size = DEFAULT_NM_STRIDE_SIZE;
-    num_threads = min(temp_nm, stride_size);
-    num_blocks = MATH_CEIL(temp_nm, stride_size);
-    args[sp->id].stride_size = stride_size;
-    handle_particle_movers<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(args[sp->id], temp_nm);
+    if(temp_nm > 0){
+        num_threads = min(temp_nm, stride_size);
+        num_blocks = MATH_CEIL(temp_nm, stride_size);
+        args[sp->id].stride_size = stride_size;
+        handle_particle_movers<<<num_blocks, num_threads, 0, sp_streams[sp->id]>>>(args[sp->id], temp_nm);
+    }
     // handle_particle_movers<<<num_blocks, num_threads>>>(gpu_args, temp_nm);
     // cudaMemsetAsync(device_nm, 0, sizeof(int), sp_streams[sp->id]);
     cudaMemcpyAsync(&sp->nm, device_nm, sizeof(int), cudaMemcpyDeviceToHost, sp_streams[sp->id]);
@@ -165,15 +170,15 @@ void advance_p_gpu_launcher(species_t *sp_list, accumulator_array_t *aa, const i
 void boundary_p_get_p_pm(particle_t *p0, particle_mover_t *pm, species_t *sp) {
   int num_threads, num_blocks, stride_size;
 
-  particle_t *device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
-  particle_mover_t *device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
-
   int np = sp->np;
   int nm = sp->nm;
 
-  if (nm <= 0) {
+  if (nm <= 0 || np <= 0) {
     return;
   }
+
+  particle_t *device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
+  particle_mover_t *device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
 
   //allocate device p0/pm
   particle_t *device_preload_p;
@@ -224,6 +229,13 @@ __global__ void check_p_idx(int Device, particle_t *device_p, int nv, int np) {
 
 void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm,
                      int pi_cnt, int pm_cnt, species_t *sp) {
+  int np = sp->np;
+  int nm = sp->nm;
+
+  if (nm <= 0 || np <= 0) {
+    return;
+  }
+
   particle_t *device_p = (particle_t *)gm.map_to_device(sp->p, sizeof(particle_t) * sp->max_np);
   particle_mover_t *device_pm = (particle_mover_t *)gm.map_to_device(sp->pm, sizeof(particle_mover_t) * sp->nm);
 
@@ -232,6 +244,7 @@ void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm,
 }
 
 void accumulate_rho_p_gpu_launcher(field_array_t *fa, const species_t *sp) {
+  if(sp->np <= 0) return;
   int num_threads, num_blocks, stride_size;
   accumulate_rho_p_gpu_args gpu_args;
 
@@ -258,6 +271,7 @@ void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia) {
 
   species_t *sp;
   LIST_FOR_EACH(sp, sp_list) {
+    if(sp->np <= 0) continue;
     energy_p_gpu_args gpu_args;
 
     gpu_args.qdt_2mc = (sp->q * sp->g->dt) / (2 * sp->m * sp->g->cvac);
@@ -280,6 +294,7 @@ void energy_p_gpu_stage_1(species_t *sp_list, interpolator_array_t *ia) {
 }
 
 double energy_p_gpu_stage_2(species_t *sp, interpolator_array_t *ia) {
+  if(sp->np <= 0) return 0;
   cudaStreamSynchronize(sp_streams[sp->id]);
   gm.copy_to_host((host_pointer)&energy_p_gpu_en[sp->id], sizeof(double));
 

@@ -244,6 +244,7 @@ int vpic_simulation::advance(void) {
   // return true here so that the first call to advance after a restore
   // will act properly for this edge case.
 
-  dump_energies("energy.txt", 1);
+  //MESSAGE(("%d\n", need_dump));
+  if(dont_dump == 0) dump_energies("energy.txt", 1);
   return 1;
 }

@@ -150,6 +150,7 @@ protected:
   int hydro_interval;
   int field_interval;
   int particle_interval;
+  int dont_dump = 0;
 
   size_t nxout, nyout, nzout;
   size_t px, py, pz;

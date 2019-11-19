@@ -163,6 +163,8 @@ vpic_simulation::modify( const char *fname ) {
     ITEST( pstride, "pstride", (iarg<1 ? 1 : iarg) );
     ITEST( stepdigit, "stepdigit", (iarg<0 ? 0 : iarg) );
     ITEST( rankdigit, "rankdigit", (iarg<0 ? 0 : iarg) );
+
+    ITEST( dont_dump, "dont_dump", iarg );
   }
 }
 

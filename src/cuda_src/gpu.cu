@@ -232,7 +232,7 @@ void append_p_and_pm(particle_t *temp_p, particle_mover_t *temp_pm,
   int np = sp->np;
   int nm = sp->nm;
 
-  if (nm <= 0 || np <= 0) {
+  if (np <= 0) {
     return;
   }
 

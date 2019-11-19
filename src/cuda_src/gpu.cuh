@@ -5,6 +5,7 @@
 #include <map>
 
 #include "src/species_advance/standard/pipeline/spa_private.h"
+#include <cuda_runtime.h>
 
 typedef void *device_pointer;
 typedef void *host_pointer;
@@ -21,12 +22,16 @@ class gpu_memory_allocator {
   device_pointer copy_to_device(host_pointer, size_t);
   void realloc(host_pointer, size_t, size_t);
   void copy_to_host(host_pointer, size_t);
+  device_pointer map_to_device(host_pointer, cudaStream_t, size_t);  // copy if needed
+  device_pointer copy_to_device(host_pointer, size_t, cudaStream_t);
+  void realloc(host_pointer, size_t, size_t, cudaStream_t);
+  void copy_to_host(host_pointer, size_t, cudaStream_t);
 };
 
 extern gpu_memory_allocator gm;
 
 void mpiSetDevice(int rank);
-void cudaInitSpeciesStream(species_t *sp_list);
+void cudaInitSpeciesStream(species_t *sp_list, accumulator_array_t *aa, const interpolator_array_t *ia);
 
 void sort_p_gpu_launcher(species_t *);
 void advance_p_gpu_launcher(species_t * sp_list, accumulator_array_t * aa, const interpolator_array_t * ia);

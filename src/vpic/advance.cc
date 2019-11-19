@@ -19,7 +19,7 @@ int vpic_simulation::advance(void) {
 #ifdef USE_GPU
   vpic_gpu::mpiSetDevice(world_rank);
   if(step() == 0){
-    vpic_gpu::cudaInitSpeciesStream(species_list);
+    vpic_gpu::cudaInitSpeciesStream(species_list, accumulator_array, interpolator_array);
     LIST_FOR_EACH(sp , species_list){
         MY_MESSAGE(("Particle [%s]:\tsp->np %d,\tg->nv: %d", sp->name, sp->np, sp->g->nv));
     }

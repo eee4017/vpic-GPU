@@ -6,7 +6,7 @@
 #include "gpu_util.cuh"
 #include "move_p_gpu.cuh"
 
-__global__ void handle_particle_movers(handle_args args, int temp_nm) {
+__global__ void handle_particle_movers(advance_p_gpu_args args, int temp_nm) {
   const int block_rank = blockIdx.x;
   const int n_block = gridDim.x;
   const int thread_rank = threadIdx.x;
@@ -44,7 +44,7 @@ __global__ void advance_p_gpu(advance_p_gpu_args args) {
   const float one_third = 1.f / 3.f;
   const float two_fifteenths = 2.f / 15.f;
 
-//   #pragma unroll 4
+  #pragma unroll 2
   for (int pid = bstart + threadIdx.x; pid < bend; pid += blockDim.x) {
       particle_t& p = args.p0[pid];
       const interpolator_t& f = args.f0[p.i];

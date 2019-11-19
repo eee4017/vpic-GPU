@@ -11,10 +11,13 @@
 #include "vpic.h"
 #include "../cuda_src/gpu.cuh"
 #define FAK field_array->kernel
+#include <chrono>
 
 int vpic_simulation::advance(void) {
   species_t *sp;
   double err;
+  double elapsed = wallclock();
+
 
 #ifdef USE_GPU
   vpic_gpu::mpiSetDevice(world_rank);
@@ -34,7 +37,16 @@ int vpic_simulation::advance(void) {
   LIST_FOR_EACH( sp, species_list )
     if( (sp->sort_interval>0) && ((step() % sp->sort_interval)==0) ) {
       if( rank()==0 ) MESSAGE(( "Performance sorting \"%s\"", sp->name ));
+      if( step() > 0 ){
+          auto start = std::chrono::system_clock::now();
+          vpic_gpu::copy_p_back(sp);
+          auto end = std::chrono::system_clock::now();
+          auto elpp =
+              std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+          MY_MESSAGE(("copy back timing: %d",elpp.count()));
+      }
       TIC sort_p( sp ); TOC( sort_p, 1 );
+      if( step() > 0 )vpic_gpu::copy_p_device(sp);
     } 
 #endif
 
@@ -245,5 +257,8 @@ int vpic_simulation::advance(void) {
   // will act properly for this edge case.
 
   dump_energies("energy.txt", 1);
+
+  elapsed = wallclock() - elapsed;
+  if(rank==0 && step()%10 == 0)MY_MESSAGE(("Time step %d: %lf", step(), elapsed));
   return 1;
 }

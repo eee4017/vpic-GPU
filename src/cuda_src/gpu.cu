@@ -293,7 +293,9 @@ double energy_p_gpu_stage_2(species_t *sp, interpolator_array_t *ia) {
 
 void copy_p_back(species_t *sp){
   gm.copy_to_host(sp->p, sp->max_np * sizeof(particle_t));
-
+}
+void copy_p_device(species_t *sp){
+  gm.copy_to_device(sp->p, sp->max_np * sizeof(particle_t));
 }
 
 };  // namespace vpic_gpu

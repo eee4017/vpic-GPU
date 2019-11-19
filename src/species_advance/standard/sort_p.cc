@@ -160,7 +160,7 @@ sort_p( species_t * sp )
   }
 
   // Conditionally execute this when more abstractions are available.
-#ifdef USE_GPU
+#ifndef USE_GPU
   vpic_gpu::sort_p_gpu_launcher(sp);
 #else
   sort_p_pipeline( sp );

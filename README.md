@@ -1,6 +1,7 @@
 # Vector Particle-In-Cell (VPIC) Project
 
 VPIC modfied version for Student Cluster Competition 19, SC19
+This repository is fork from https://github.com/lanl/vpic and we do not guarantee the correctness of the answer.
 
 National Tsinghua University, Taiwan
 
@@ -29,3 +30,7 @@ you can set the numstep in lpi_2d_F6_test to smaller number (e.g. num_step = 20)
 ../vpic ./lpi_2d_F6_test
 ./lpi_2d_F6_test.Generic --tpp <thread num>
 ```
+
+## checkpointing
+
+The checkpointing should work correctly.  

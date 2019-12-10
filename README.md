@@ -1,4 +1,4 @@
-# Vector Particle-In-Cell (VPIC) GPU version
+# Vector Particle-In-Cell GPU version (vpic-GPU)
 
 VPIC modfied version with GPU support for Student Cluster Competition 19, SC19
 
@@ -49,12 +49,12 @@ mpirun -n <device num> ./lpi_2d_F6_test.Generic --tpp <thread num>
 
 `lpi_2d_F6_test` 2000 timesteps
 
-- GPU version: `eee4017/vpic-GPU 50835bb`
-- CPU version: `lanl/vpic 51d05ac`
+- GPU version: `eee4017/vpic-GPU` `50835bb`
+- CPU version: `lanl/vpic` `51d05ac`
 
-Hardware Specification:CPU
-- Nvidia&reg; Tesla&reg; V100-PCIE-32GB * 4
-- Intel&reg; Xeon&reg; Silver 4110 (16 core)
+Hardware Specification:
+- GPU: Nvidia&reg; Tesla&reg; V100-PCIE-32GB * 4
+- CPU: Intel&reg; Xeon&reg; Silver 4110 * 2 (16 core)
 
 Sofware Specification:
 - CUDA 10.0
@@ -71,6 +71,6 @@ Sofware Specification:
 | GPU      |   4 devices | 4        | 4        | 1:05.34  |
 
 
-## Contributers
+## Contributers of vpic-GPU
 
-@eee4017 @zlsh80826 @ttpssabc
+[@eee4017](https://github.com/eee4017) [@zlsh80826](https://github.com/zlsh80826) [@ttpssabc](https://github.com/ttpssabc)

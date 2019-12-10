@@ -8,6 +8,8 @@ We do not guarantee the correctness of the answer.
 
 NTHU, Taiwan
 
+Contributers of vpic-GPU:
+@eee4017, @zlsh80826, @ttpssabc
 
 ## Compile
 

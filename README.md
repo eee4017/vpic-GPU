@@ -1,18 +1,16 @@
-# Vector Particle-In-Cell (VPIC) Project
+# Vector Particle-In-Cell (VPIC) GPU version
 
 VPIC modfied version with GPU support for Student Cluster Competition 19, SC19
 
-This repository is fork from https://github.com/lanl/vpic. 
+This repository is fork from https://github.com/lanl/vpic. Please refer to the original project for detail information.
 
-We do not guarantee the correctness of the answer.
+We do NOT guarantee the correctness of the answer.
 
 NTHU, Taiwan
 
-Contributers of vpic-GPU:
-@eee4017 @zlsh80826 @ttpssabc
-
 ## Compile
 
+`arch/cuda` contains compile arguments designed for Nvidia&reg; Tesla&reg; V100.
 
 ```
 module load cuda/10.0
@@ -33,7 +31,7 @@ cp ~/vpic-GPU/sample/lpi_2d_F6_test .
 ./lpi_2d_F6_test.Generic --tpp <thread num>
 ```
 
-For multiple GPU environment, you should set CUDA_VISIBLE_DEVICES and excute with MPI, each device would be assigned to a MPI process. If you want to assign more process inside one GPU, you could modify `mpiSetDevice()` inside `cuda_src/gpu.cu`
+For multiple GPU environment, you should set CUDA_VISIBLE_DEVICES and excute with MPI, each device would be assigned to a MPI process. If you want to assign more process to a device, you could modify `mpiSetDevice()` inside `cuda_src/gpu.cu`.
 
 ```
 mpirun -n <device num> ./lpi_2d_F6_test.Generic --tpp <thread num>
@@ -60,10 +58,9 @@ Hardware Specification:CPU
 
 Sofware Specification:
 - CUDA 10.0
-- Intel&reg; Parallel Studio XE 2018
+- Intel&reg; Parallel Studio XE 2018 (include icc and intel mpi)
 
-### result
-
+### Results
 
 
 | version  | resources   | threads  |  mpi process | total time |
@@ -73,3 +70,7 @@ Sofware Specification:
 | GPU      |   1 device  | 4        | 1        | 3:08.45  |
 | GPU      |   4 devices | 4        | 4        | 1:05.34  |
 
+
+## Contributers
+
+@eee4017 @zlsh80826 @ttpssabc
